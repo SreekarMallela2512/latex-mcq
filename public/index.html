@@ -1,40 +1,61 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>LaTeX MCQ Input</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-</head>
-<body>
-  <h1>Enter MCQ (LaTeX Supported)</h1>
-  <form action="/submit" method="POST">
-    <label>Question (LaTeX):</label><br>
-    <textarea name="question" id="question" rows="3" oninput="renderLatex()"></textarea><br>
+<!-- Add this inside <body> -->
+<div id="message" style="color: green; font-weight: bold; display: none;"></div>
 
-    <label>Option 1:</label><input type="text" name="option1"><br>
-    <label>Option 2:</label><input type="text" name="option2"><br>
-    <label>Option 3:</label><input type="text" name="option3"><br>
-    <label>Option 4:</label><input type="text" name="option4"><br>
+<script>
+  const form = document.getElementById('mcq-form');
+  const preview = document.getElementById('preview');
+  const message = document.getElementById('message');
 
-    <label>Correct Option (0-3):</label><input type="number" name="correctOption"><br>
-    <label>Subject:</label><input type="text" name="subject"><br>
-    <label>Topic:</label><input type="text" name="topic"><br>
-    <label>Difficulty:</label><input type="text" name="difficulty"><br>
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-    <button type="submit">Save</button>
-  </form>
+    const formData = new FormData(form);
+    const data = {
+      question: formData.get('question'),
+      options: [
+        formData.get('option0'),
+        formData.get('option1'),
+        formData.get('option2'),
+        formData.get('option3'),
+      ],
+      correctOption: parseInt(formData.get('correctOption')),
+      subject: formData.get('subject'),
+      topic: formData.get('topic'),
+      difficulty: formData.get('difficulty')
+    };
 
-  <h3>Preview:</h3>
-  <div id="preview"></div>
+    const res = await fetch('/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
 
-  <script>
-    function renderLatex() {
-      const latex = document.getElementById('question').value;
-      document.getElementById('preview').innerHTML = `\\(${latex}\\)`;
+    if (res.ok) {
+      form.reset();
+      preview.innerHTML = '';
       MathJax.typeset();
+      message.textContent = '✅ Question added successfully!';
+      message.style.display = 'block';
+
+      setTimeout(() => {
+        message.style.display = 'none';
+      }, 3000);
+    } else {
+      alert('❌ Failed to submit question.');
     }
-  </script>
-</body>
-</html>
+  });
+
+  form.addEventListener('input', () => {
+    const formData = new FormData(form);
+    const question = formData.get('question');
+    const options = [0, 1, 2, 3].map(i => formData.get(`option${i}`));
+    const previewHTML = `
+      <p><strong>Q:</strong> \\(${question}\\)</p>
+      <ul>
+        ${options.map((opt, i) => `<li>(${i}) \\(${opt}\\)</li>`).join('')}
+      </ul>
+    `;
+    preview.innerHTML = previewHTML;
+    MathJax.typeset();
+  });
+</script>
