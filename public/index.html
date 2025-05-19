@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LaTeX MCQ Input</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+  <h1>Enter MCQ (LaTeX Supported)</h1>
+  <form action="/submit" method="POST">
+    <label>Question (LaTeX):</label><br>
+    <textarea name="question" id="question" rows="3" oninput="renderLatex()"></textarea><br>
+
+    <label>Option 1:</label><input type="text" name="option1"><br>
+    <label>Option 2:</label><input type="text" name="option2"><br>
+    <label>Option 3:</label><input type="text" name="option3"><br>
+    <label>Option 4:</label><input type="text" name="option4"><br>
+
+    <label>Correct Option (0-3):</label><input type="number" name="correctOption"><br>
+    <label>Subject:</label><input type="text" name="subject"><br>
+    <label>Topic:</label><input type="text" name="topic"><br>
+    <label>Difficulty:</label><input type="text" name="difficulty"><br>
+
+    <button type="submit">Save</button>
+  </form>
+
+  <h3>Preview:</h3>
+  <div id="preview"></div>
+
+  <script>
+    function renderLatex() {
+      const latex = document.getElementById('question').value;
+      document.getElementById('preview').innerHTML = `\\(${latex}\\)`;
+      MathJax.typeset();
+    }
+  </script>
+</body>
+</html>
