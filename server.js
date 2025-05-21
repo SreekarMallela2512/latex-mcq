@@ -1,6 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
+
 const MCQ = require('./mcqModel');
 const app = express();
 
@@ -9,14 +9,17 @@ mongoose.connect('mongodb://localhost:27017/mcqdb', {
   useUnifiedTopology: true,
 });
 
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.use(express.static('public'));
 
 app.post('/submit', async (req, res) => {
   const { question, options, correctOption, subject, topic, difficulty } = req.body;
 
   // Convert correctOption from string to number and subtract 1 for zero-based indexing
-  const correctOptionIndex = parseInt(correctOption, 10) - 1;
+ const correctOptionIndex = parseInt(correctOption, 10) - 1;
+
 
   const mcq = new MCQ({
     question,

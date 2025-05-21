@@ -11,7 +11,8 @@
   <div class="container">
     <h1>Submit MCQ (LaTeX Supported)</h1>
 
-    <form action="/submit" method="POST" onsubmit="return showSuccess()">
+    <form id="mcqForm" method="POST">
+
       <label>Question (LaTeX):</label>
       <textarea name="question" id="question" rows="3" oninput="renderLatex()" required></textarea>
 
@@ -104,6 +105,47 @@
         topicSelect.appendChild(option);
       });
     }
+    
+  const form = document.getElementById('mcqForm');
+
+  form.addEventListener('submit', async function(event) {
+    event.preventDefault(); // Prevent normal form submission
+
+    const formData = new FormData(form);
+    const data = {
+      question: formData.get('question'),
+      options: [
+        formData.get('option1'),
+        formData.get('option2'),
+        formData.get('option3'),
+        formData.get('option4')
+      ],
+      correctOption: formData.get('correctOption'),
+      subject: formData.get('subject'),
+      topic: formData.get('topic'),
+      difficulty: formData.get('difficulty'),
+    };
+
+    try {
+      const response = await fetch('/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        alert('Question added successfully!');
+        form.reset();
+        document.getElementById('preview').innerHTML = '';
+      } else {
+        alert('Failed to add question.');
+      }
+    } catch (error) {
+      alert('Error: ' + error.message);
+    }
+  });
+
+
   </script>
 </body>
 </html>
