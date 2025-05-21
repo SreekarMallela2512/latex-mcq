@@ -4,10 +4,11 @@ const mongoose = require('mongoose');
 const MCQ = require('./mcqModel');
 const app = express();
 
-mongoose.connect('mongodb://localhost:27017/mcqdb', {
+mongoose.connect('mongodb+srv://<username>:<password>@cluster0.mongodb.net/mcqdb?retryWrites=true&w=majority', {
   useNewUrlParser: true,
-  useUnifiedTopology: true,
+  useUnifiedTopology: true
 });
+
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
