@@ -13,20 +13,26 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
 app.post('/submit', async (req, res) => {
-  const { question, option1, option2, option3, option4, correctOption, subject, topic, difficulty } = req.body;
+  const { question, options, correctOption, subject, topic, difficulty } = req.body;
 
   const mcq = new MCQ({
     question,
-    options: [option1, option2, option3, option4],
-    correctOption: parseInt(correctOption),
+    options,
+    correctOption,
     subject,
     topic,
-    difficulty,
+    difficulty
   });
 
-  await mcq.save();
-  res.redirect('/');
+  try {
+    await mcq.save();
+    res.send("Question added successfully!"); // ✅ send string message
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error saving question.");
+  }
 });
+
 
 app.listen(3000, () => {
   console.log('Server started on http://localhost:3000');

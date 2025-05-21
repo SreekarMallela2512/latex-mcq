@@ -19,11 +19,38 @@
     <label>Option 4:</label><input type="text" name="option4"><br>
 
     <label>Correct Option (0-3):</label><input type="number" name="correctOption"><br>
-    <label>Subject:</label><input type="text" name="subject"><br>
-    <label>Topic:</label><input type="text" name="topic"><br>
-    <label>Difficulty:</label><input type="text" name="difficulty"><br>
+    <!-- SUBJECT -->
+<label for="subject">Subject:</label>
+<select name="subject" id="subject" required onchange="updateTopics()">
+  <option value="">-- Select Subject --</option>
+  <option value="Maths">Maths</option>
+  <option value="Physics">Physics</option>
+  <option value="Chemistry">Chemistry</option>
+</select>
+<br><br>
+
+<!-- TOPIC (will update dynamically) -->
+<label for="topic">Topic:</label>
+<select name="topic" id="topic" required>
+  <option value="">-- Select Topic --</option>
+</select>
+<br><br>
+
+<!-- DIFFICULTY -->
+<label for="difficulty">Difficulty:</label>
+<select name="difficulty" id="difficulty" required>
+  <option value="">-- Select Difficulty --</option>
+  <option value="easy">Easy</option>
+  <option value="medium">Medium</option>
+  <option value="hard">Hard</option>
+</select>
+<br><br>
+
+<br><br>
 
     <button type="submit">Save</button>
+    <button type="button" onclick="form.reset(); preview.innerHTML='';">Clear Form</button>
+
   </form>
 
   <h3>Preview:</h3>
@@ -35,6 +62,108 @@
       document.getElementById('preview').innerHTML = `\\(${latex}\\)`;
       MathJax.typeset();
     }
-  </script>
+    
+  const physicsTopics = [
+    "Physical World and Measurement",
+    "Kinematics",
+    "Laws of Motion",
+    "Work, Energy and Power",
+    "Rotational Motion",
+    "Gravitation",
+    "Properties of Solids and Liquids",
+    "Thermodynamics",
+    "Kinetic Theory of Gases",
+    "Oscillations and Waves",
+    "Electrostatics",
+    "Current Electricity",
+    "Magnetic Effects of Current and Magnetism",
+    "Electromagnetic Induction and Alternating Currents",
+    "Electromagnetic Waves",
+    "Optics",
+    "Dual Nature of Matter and Radiation",
+    "Atoms and Nuclei",
+    "Electronic Devices",
+    "Communication Systems"
+  ];
+
+  const chemistryTopics = [
+    "Some Basic Concepts of Chemistry (Mole Concept)",
+    "Atomic Structure",
+    "Chemical Bonding and Molecular Structure",
+    "Chemical Thermodynamics",
+    "Solutions",
+    "Equilibrium",
+    "Redox Reactions and Electrochemistry",
+    "Chemical Kinetics",
+    "Surface Chemistry",
+    "Classification of Elements and Periodicity in Properties",
+    "General Principles and Processes of Isolation of Metals",
+    "Hydrogen",
+    "S-block elements (Alkali and Alkaline earth metals)",
+    "P-block elements",
+    "D and F block elements",
+    "Coordination Compounds",
+    "Environmental Chemistry",
+    "Organic Chemistry – Basic Principles and Techniques",
+    "Hydrocarbons",
+    "Haloalkanes and Haloarenes",
+    "Alcohols, Phenols, and Ethers",
+    "Aldehydes, Ketones, and Carboxylic Acids",
+    "Organic Compounds Containing Nitrogen",
+    "Polymers",
+    "Biomolecules"
+  ];
+
+  const mathsTopics = [
+    "Sets, Relations and Functions",
+    "Complex Numbers and Quadratic Equations",
+    "Matrices and Determinants",
+    "Permutations and Combinations",
+    "Mathematical Induction",
+    "Binomial Theorem",
+    "Sequences and Series",
+    "Limits, Continuity and Differentiability",
+    "Integral Calculus",
+    "Differential Equations",
+    "Coordinate Geometry",
+    "3D Geometry",
+    "Vector Algebra",
+    "Statistics and Probability",
+    "Trigonometry",
+    "Mathematical Reasoning"
+  ];
+
+  function updateTopics() {
+    const subject = document.getElementById('subject').value;
+    const topicSelect = document.getElementById('topic');
+    topicSelect.innerHTML = "";
+
+    let topics = [];
+
+    if (subject === "Physics") {
+      topics = physicsTopics;
+    } else if (subject === "Chemistry") {
+      topics = chemistryTopics;
+    } else if (subject === "Maths") {
+      topics = mathsTopics;
+    } else {
+      topics = ["-- No topics available --"];
+    }
+
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.textContent = "-- Select Topic --";
+    topicSelect.appendChild(defaultOption);
+
+    topics.forEach(topic => {
+      const option = document.createElement("option");
+      option.value = topic;
+      option.textContent = topic;
+      topicSelect.appendChild(option);
+    });
+  }
+</script>
+
+
 </body>
 </html>
