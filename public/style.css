@@ -1,19 +1,114 @@
-body {
-  font-family: Arial, sans-serif;
-  margin: 40px;
+/* Reset minor */
+* {
+  box-sizing: border-box;
 }
 
-input, textarea {
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+  margin: 40px;
+  padding: 0 20px;
+  color: #2c3e50;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  align-items: flex-start;
+}
+
+.container {
+  background: #ffffffdd;
+  max-width: 750px;
   width: 100%;
-  margin: 5px 0 15px;
-  padding: 8px;
+  padding: 35px 40px;
+  border-radius: 16px;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.1),
+    0 4px 12px rgba(0, 0, 0, 0.06);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+h1, h3 {
+  text-align: center;
+  margin-bottom: 25px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #34495e;
+}
+
+label {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6px;
+  font-size: 15px;
+  color: #34495e;
+}
+
+input, textarea, select {
+  width: 100%;
+  margin-bottom: 18px;
+  padding: 12px 15px;
+  font-size: 15px;
+  border: 1.8px solid #d1d9e6;
+  border-radius: 10px;
+  background: #f9fbff;
+  color: #34495e;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: #5dade2;
+  box-shadow: 0 0 10px rgba(93, 173, 226, 0.5);
+  outline: none;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 80px;
 }
 
 button {
-  padding: 10px 20px;
-  background-color: #0275d8;
+  padding: 12px 26px;
+  background: #5dade2;
   color: white;
   border: none;
   cursor: pointer;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  box-shadow: 0 5px 15px rgba(93, 173, 226, 0.4);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
+button:hover {
+  background-color: #3a89d1;
+  box-shadow: 0 7px 20px rgba(58, 137, 209, 0.6);
+}
+
+button + button {
+  margin-left: 15px;
+}
+
+#preview {
+  border: 2px dashed #a3b1c6;
+  background: #f0f5fc;
+  padding: 18px;
+  border-radius: 14px;
+  min-height: 60px;
+  color: #34495e;
+  font-size: 18px;
+  font-style: italic;
+  margin-top: 12px;
+  user-select: none;
+}
+
+#successMessage {
+  text-align: center;
+  margin-top: 18px;
+  font-weight: 700;
+  font-size: 16px;
+  color: #27ae60;
+  letter-spacing: 0.6px;
+  user-select: none;
+}

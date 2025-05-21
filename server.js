@@ -15,10 +15,13 @@ app.use(express.static('public'));
 app.post('/submit', async (req, res) => {
   const { question, options, correctOption, subject, topic, difficulty } = req.body;
 
+  // Convert correctOption from string to number and subtract 1 for zero-based indexing
+  const correctOptionIndex = parseInt(correctOption, 10) - 1;
+
   const mcq = new MCQ({
     question,
     options,
-    correctOption,
+    correctOption: correctOptionIndex,
     subject,
     topic,
     difficulty
@@ -32,6 +35,7 @@ app.post('/submit', async (req, res) => {
     res.status(500).send("Error saving question.");
   }
 });
+
 
 
 app.listen(3000, () => {

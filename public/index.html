@@ -1,60 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>LaTeX MCQ Input</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
   <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
 <body>
-  <h1>Enter MCQ (LaTeX Supported)</h1>
-  <form action="/submit" method="POST">
-    <label>Question (LaTeX):</label><br>
-    <textarea name="question" id="question" rows="3" oninput="renderLatex()"></textarea><br>
+  <div class="container">
+    <h1>Submit MCQ (LaTeX Supported)</h1>
 
-    <label>Option 1:</label><input type="text" name="option1"><br>
-    <label>Option 2:</label><input type="text" name="option2"><br>
-    <label>Option 3:</label><input type="text" name="option3"><br>
-    <label>Option 4:</label><input type="text" name="option4"><br>
+    <form action="/submit" method="POST" onsubmit="return showSuccess()">
+      <label>Question (LaTeX):</label>
+      <textarea name="question" id="question" rows="3" oninput="renderLatex()" required></textarea>
 
-    <label>Correct Option (0-3):</label><input type="number" name="correctOption"><br>
-    <!-- SUBJECT -->
-<label for="subject">Subject:</label>
-<select name="subject" id="subject" required onchange="updateTopics()">
-  <option value="">-- Select Subject --</option>
-  <option value="Maths">Maths</option>
-  <option value="Physics">Physics</option>
-  <option value="Chemistry">Chemistry</option>
-</select>
-<br><br>
+      <label>Option 1:</label>
+      <input type="text" name="option1" required />
 
-<!-- TOPIC (will update dynamically) -->
-<label for="topic">Topic:</label>
-<select name="topic" id="topic" required>
-  <option value="">-- Select Topic --</option>
-</select>
-<br><br>
+      <label>Option 2:</label>
+      <input type="text" name="option2" required />
 
-<!-- DIFFICULTY -->
-<label for="difficulty">Difficulty:</label>
-<select name="difficulty" id="difficulty" required>
-  <option value="">-- Select Difficulty --</option>
-  <option value="easy">Easy</option>
-  <option value="medium">Medium</option>
-  <option value="hard">Hard</option>
-</select>
-<br><br>
+      <label>Option 3:</label>
+      <input type="text" name="option3" required />
 
-<br><br>
+      <label>Option 4:</label>
+      <input type="text" name="option4" required />
 
-    <button type="submit">Save</button>
-    <button type="button" onclick="form.reset(); preview.innerHTML='';">Clear Form</button>
+      <label>Correct Option (1-4):</label>
+<input type="number" name="correctOption" min="1" max="4" required>
 
-  </form>
 
-  <h3>Preview:</h3>
-  <div id="preview"></div>
+      <label for="subject">Subject:</label>
+      <select name="subject" id="subject" required onchange="updateTopics()">
+        <option value="">-- Select Subject --</option>
+        <option value="Maths">Maths</option>
+        <option value="Physics">Physics</option>
+        <option value="Chemistry">Chemistry</option>
+      </select>
+
+      <label for="topic">Topic:</label>
+      <select name="topic" id="topic" required>
+        <option value="">-- Select Topic --</option>
+      </select>
+
+      <label for="difficulty">Difficulty:</label>
+      <select name="difficulty" id="difficulty" required>
+        <option value="">-- Select Difficulty --</option>
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+
+      <button type="submit">Save</button>
+      <button type="button" onclick="form.reset(); preview.innerHTML='';">Clear Form</button>
+      <div id="successMessage"></div>
+    </form>
+
+    <h3>Preview:</h3>
+    <div id="preview"></div>
+  </div>
 
   <script>
     function renderLatex() {
@@ -62,108 +67,43 @@
       document.getElementById('preview').innerHTML = `\\(${latex}\\)`;
       MathJax.typeset();
     }
-    
-  const physicsTopics = [
-    "Physical World and Measurement",
-    "Kinematics",
-    "Laws of Motion",
-    "Work, Energy and Power",
-    "Rotational Motion",
-    "Gravitation",
-    "Properties of Solids and Liquids",
-    "Thermodynamics",
-    "Kinetic Theory of Gases",
-    "Oscillations and Waves",
-    "Electrostatics",
-    "Current Electricity",
-    "Magnetic Effects of Current and Magnetism",
-    "Electromagnetic Induction and Alternating Currents",
-    "Electromagnetic Waves",
-    "Optics",
-    "Dual Nature of Matter and Radiation",
-    "Atoms and Nuclei",
-    "Electronic Devices",
-    "Communication Systems"
-  ];
 
-  const chemistryTopics = [
-    "Some Basic Concepts of Chemistry (Mole Concept)",
-    "Atomic Structure",
-    "Chemical Bonding and Molecular Structure",
-    "Chemical Thermodynamics",
-    "Solutions",
-    "Equilibrium",
-    "Redox Reactions and Electrochemistry",
-    "Chemical Kinetics",
-    "Surface Chemistry",
-    "Classification of Elements and Periodicity in Properties",
-    "General Principles and Processes of Isolation of Metals",
-    "Hydrogen",
-    "S-block elements (Alkali and Alkaline earth metals)",
-    "P-block elements",
-    "D and F block elements",
-    "Coordination Compounds",
-    "Environmental Chemistry",
-    "Organic Chemistry – Basic Principles and Techniques",
-    "Hydrocarbons",
-    "Haloalkanes and Haloarenes",
-    "Alcohols, Phenols, and Ethers",
-    "Aldehydes, Ketones, and Carboxylic Acids",
-    "Organic Compounds Containing Nitrogen",
-    "Polymers",
-    "Biomolecules"
-  ];
-
-  const mathsTopics = [
-    "Sets, Relations and Functions",
-    "Complex Numbers and Quadratic Equations",
-    "Matrices and Determinants",
-    "Permutations and Combinations",
-    "Mathematical Induction",
-    "Binomial Theorem",
-    "Sequences and Series",
-    "Limits, Continuity and Differentiability",
-    "Integral Calculus",
-    "Differential Equations",
-    "Coordinate Geometry",
-    "3D Geometry",
-    "Vector Algebra",
-    "Statistics and Probability",
-    "Trigonometry",
-    "Mathematical Reasoning"
-  ];
-
-  function updateTopics() {
-    const subject = document.getElementById('subject').value;
-    const topicSelect = document.getElementById('topic');
-    topicSelect.innerHTML = "";
-
-    let topics = [];
-
-    if (subject === "Physics") {
-      topics = physicsTopics;
-    } else if (subject === "Chemistry") {
-      topics = chemistryTopics;
-    } else if (subject === "Maths") {
-      topics = mathsTopics;
-    } else {
-      topics = ["-- No topics available --"];
+    function showSuccess() {
+      const msg = document.getElementById("successMessage");
+      msg.textContent = "✅ Question submitted successfully!";
+      msg.style.color = "green";
+      setTimeout(() => (msg.textContent = ""), 3000);
+      return true;
     }
 
-    const defaultOption = document.createElement("option");
-    defaultOption.value = "";
-    defaultOption.textContent = "-- Select Topic --";
-    topicSelect.appendChild(defaultOption);
+    const physicsTopics = [ "Physical World and Measurement", "Kinematics", "Laws of Motion", "Work, Energy and Power", "Rotational Motion", "Gravitation", "Properties of Solids and Liquids", "Thermodynamics", "Kinetic Theory of Gases", "Oscillations and Waves", "Electrostatics", "Current Electricity", "Magnetic Effects of Current and Magnetism", "Electromagnetic Induction and Alternating Currents", "Electromagnetic Waves", "Optics", "Dual Nature of Matter and Radiation", "Atoms and Nuclei", "Electronic Devices", "Communication Systems" ];
 
-    topics.forEach(topic => {
-      const option = document.createElement("option");
-      option.value = topic;
-      option.textContent = topic;
-      topicSelect.appendChild(option);
-    });
-  }
-</script>
+    const chemistryTopics = [ "Some Basic Concepts of Chemistry (Mole Concept)", "Atomic Structure", "Chemical Bonding and Molecular Structure", "Chemical Thermodynamics", "Solutions", "Equilibrium", "Redox Reactions and Electrochemistry", "Chemical Kinetics", "Surface Chemistry", "Classification of Elements and Periodicity in Properties", "General Principles and Processes of Isolation of Metals", "Hydrogen", "S-block elements (Alkali and Alkaline earth metals)", "P-block elements", "D and F block elements", "Coordination Compounds", "Environmental Chemistry", "Organic Chemistry – Basic Principles and Techniques", "Hydrocarbons", "Haloalkanes and Haloarenes", "Alcohols, Phenols, and Ethers", "Aldehydes, Ketones, and Carboxylic Acids", "Organic Compounds Containing Nitrogen", "Polymers", "Biomolecules" ];
 
+    const mathsTopics = [ "Sets, Relations and Functions", "Complex Numbers and Quadratic Equations", "Matrices and Determinants", "Permutations and Combinations", "Mathematical Induction", "Binomial Theorem", "Sequences and Series", "Limits, Continuity and Differentiability", "Integral Calculus", "Differential Equations", "Coordinate Geometry", "3D Geometry", "Vector Algebra", "Statistics and Probability", "Trigonometry", "Mathematical Reasoning" ];
 
+    function updateTopics() {
+      const subject = document.getElementById("subject").value;
+      const topicSelect = document.getElementById("topic");
+      topicSelect.innerHTML = "";
+
+      let topics = [];
+      if (subject === "Physics") topics = physicsTopics;
+      else if (subject === "Chemistry") topics = chemistryTopics;
+      else if (subject === "Maths") topics = mathsTopics;
+
+      const defaultOption = document.createElement("option");
+      defaultOption.value = "";
+      defaultOption.textContent = "-- Select Topic --";
+      topicSelect.appendChild(defaultOption);
+
+      topics.forEach((topic) => {
+        const option = document.createElement("option");
+        option.value = topic;
+        option.textContent = topic;
+        topicSelect.appendChild(option);
+      });
+    }
+  </script>
 </body>
 </html>
