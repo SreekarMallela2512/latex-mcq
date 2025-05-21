@@ -1,13 +1,20 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 
 const MCQ = require('./mcqModel');
 const app = express();
 
-mongoose.connect('mongodb+srv://<username>:<password>@cluster0.mongodb.net/mcqdb?retryWrites=true&w=majority', {
+mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
+}).then(() => {
+  console.log('✅ Connected to MongoDB Atlas');
+}).catch(err => {
+  console.error('❌ Connection error:', err.message);
 });
+
+
 
 
 app.use(express.json());
