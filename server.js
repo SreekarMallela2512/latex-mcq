@@ -46,6 +46,16 @@ app.post('/submit', async (req, res) => {
     res.status(500).send("Error saving question.");
   }
 });
+app.get('/questions', async (req, res) => {
+  try {
+    const questions = await MCQ.find();
+    res.json(questions);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error fetching questions.");
+  }
+});
+
 
 
 

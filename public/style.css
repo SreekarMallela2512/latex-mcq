@@ -112,3 +112,10 @@ button + button {
   letter-spacing: 0.6px;
   user-select: none;
 }
+.question-card {
+  background: #fdfdfd;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 10px;
+  margin: 10px 0;
+}

@@ -58,11 +58,16 @@
       <button type="button" onclick="form.reset(); preview.innerHTML='';">Clear Form</button>
       <div id="successMessage"></div>
     </form>
+    <hr />
+<h2>Stored Questions</h2>
+<button onclick="loadQuestions()">🔍 View All Questions</button>
+<div id="questionList"></div>
 
-  
   </div>
 
   <script>
+
+
  
   let previewTimeout;
 
@@ -168,6 +173,36 @@ function renderLatex() {
       alert('Error: ' + error.message);
     }
   });
+// change
+async function loadQuestions() {
+  const response = await fetch('/questions');
+  const questions = await response.json();
+
+  const list = document.getElementById('questionList');
+  list.innerHTML = '';
+
+  if (questions.length === 0) {
+    list.innerHTML = '<p>No questions found.</p>';
+    return;
+  }
+
+  questions.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'question-card';
+    div.innerHTML = `
+      <strong>Q${i + 1}:</strong> ${q.question}<br/>
+      <ul>
+        ${q.options.map((opt, idx) => `
+          <li${idx === q.correctOption ? ' style="font-weight:bold;color:green;"' : ''}>${String.fromCharCode(65 + idx)}. ${opt}</li>`).join('')}
+      </ul>
+      <em>Subject:</em> ${q.subject}, <em>Topic:</em> ${q.topic}, <em>Difficulty:</em> ${q.difficulty}
+      <hr/>
+    `;
+    list.appendChild(div);
+  });
+
+  MathJax.typesetPromise([list]); // Render LaTeX
+}
 
 
   </script>
