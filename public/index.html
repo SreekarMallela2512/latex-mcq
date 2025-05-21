@@ -15,7 +15,8 @@
 
       <label>Question (LaTeX):</label>
       <textarea name="question" id="question" rows="3" oninput="renderLatex()" required></textarea>
-
+  <h3>Preview:</h3>
+    <div id="preview"></div>
       <label>Option 1:</label>
       <input type="text" name="option1" required />
 
@@ -58,16 +59,39 @@
       <div id="successMessage"></div>
     </form>
 
-    <h3>Preview:</h3>
-    <div id="preview"></div>
+  
   </div>
 
   <script>
-    function renderLatex() {
-      const latex = document.getElementById('question').value;
-      document.getElementById('preview').innerHTML = `\\(${latex}\\)`;
-      MathJax.typeset();
+ 
+  let previewTimeout;
+
+ 
+
+function renderLatex() {
+  clearTimeout(previewTimeout); // Debounce
+
+  previewTimeout = setTimeout(() => {
+    const latexInput = document.getElementById('question').value.trim();
+    const preview = document.getElementById('preview');
+
+    if (!latexInput) {
+      preview.innerHTML = '<em style="color: #777;">Preview will appear here...</em>';
+      return;
     }
+
+    // Don't wrap in \( ... \) again if already present
+    const isInlineMath = latexInput.includes('\\(') || latexInput.includes('\\[');
+    const safeLatex = isInlineMath ? latexInput : `\\(${latexInput}\\)`;
+
+    // Inject and render
+    preview.innerHTML = safeLatex;
+
+    MathJax.typesetClear([preview]);
+    MathJax.typesetPromise([preview]);
+  }, 250);
+}
+
 
     function showSuccess() {
       const msg = document.getElementById("successMessage");
