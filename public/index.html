@@ -17,17 +17,22 @@
       <textarea name="question" id="question" rows="3" oninput="renderLatex()" required></textarea>
   <h3>Preview:</h3>
     <div id="preview"></div>
-      <label>Option 1:</label>
-      <input type="text" name="option1" required />
+     <label>Option 1:</label>
+<input type="text" name="option1" id="option1" required oninput="renderOptionLatex(1)" />
+<div class="option-preview" id="preview-option1"></div>
 
-      <label>Option 2:</label>
-      <input type="text" name="option2" required />
+<label>Option 2:</label>
+<input type="text" name="option2" id="option2" required oninput="renderOptionLatex(2)" />
+<div class="option-preview" id="preview-option2"></div>
 
-      <label>Option 3:</label>
-      <input type="text" name="option3" required />
+<label>Option 3:</label>
+<input type="text" name="option3" id="option3" required oninput="renderOptionLatex(3)" />
+<div class="option-preview" id="preview-option3"></div>
 
-      <label>Option 4:</label>
-      <input type="text" name="option4" required />
+<label>Option 4:</label>
+<input type="text" name="option4" id="option4" required oninput="renderOptionLatex(4)" />
+<div class="option-preview" id="preview-option4"></div>
+
 
       <label>Correct Option (1-4):</label>
 <input type="number" name="correctOption" min="1" max="4" required>
@@ -101,6 +106,30 @@ function renderLatex() {
       console.error('MathJax error:', err);
     });
   }, 300);
+}
+function renderOptionLatex(num) {
+  const input = document.getElementById(`option${num}`).value.trim();
+  const preview = document.getElementById(`preview-option${num}`);
+
+  if (!input) {
+    preview.innerHTML = '<em style="color:#777;">Preview...</em>';
+    return;
+  }
+
+  let escaped = input.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  // Convert $$...$$ to \[...\]
+  escaped = escaped.replace(/\$\$(.+?)\$\$/gs, (_, match) => `\\[${match.trim()}\\]`);
+  // Convert $...$ to \(...\)
+  escaped = escaped.replace(/(^|[^\\])\$(.+?)\$/g, (_, prefix, match) => `${prefix}\\(${match.trim()}\\)`);
+
+  preview.innerHTML = escaped;
+
+  MathJax.typesetClear([preview]);
+  MathJax.typesetPromise([preview]).catch(err => {
+    preview.innerHTML = '<span style="color:red;">Rendering error</span>';
+    console.error('MathJax error:', err);
+  });
 }
 
 
@@ -217,3 +246,9 @@ async function loadQuestions() {
   </script>
 </body>
 </html>
+
+
+
+
+
+

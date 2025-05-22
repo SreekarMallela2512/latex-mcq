@@ -119,3 +119,9 @@ button + button {
   padding: 10px;
   margin: 10px 0;
 }
+.option-preview {
+  font-size: 1rem;
+  margin-bottom: 10px;
+  color: #333;
+  min-height: 20px;
+}
