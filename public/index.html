@@ -69,33 +69,42 @@
 
 
  
-  let previewTimeout;
-
- 
+ let previewTimeout;
 
 function renderLatex() {
-  clearTimeout(previewTimeout); // Debounce
+  clearTimeout(previewTimeout); // Debounce rendering
 
   previewTimeout = setTimeout(() => {
-    const latexInput = document.getElementById('question').value.trim();
+    const input = document.getElementById('question').value.trim();
     const preview = document.getElementById('preview');
 
-    if (!latexInput) {
+    if (!input) {
       preview.innerHTML = '<em style="color: #777;">Preview will appear here...</em>';
       return;
     }
 
-    // Don't wrap in \( ... \) again if already present
-    const isInlineMath = latexInput.includes('\\(') || latexInput.includes('\\[');
-    const safeLatex = isInlineMath ? latexInput : `\\(${latexInput}\\)`;
+    // Escape HTML to prevent tag injection
+    let escaped = input.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-    // Inject and render
-    preview.innerHTML = safeLatex;
+    // Replace $$...$$ with \[...\] (display math) if not already using \[ \]
+    escaped = escaped.replace(/\$\$(.+?)\$\$/gs, (_, match) => `\\[${match.trim()}\\]`);
+
+    // Replace $...$ with \(...\) (inline math) if not already using \( \)
+    escaped = escaped.replace(/(^|[^\\])\$(.+?)\$/g, (_, prefix, match) => `${prefix}\\(${match.trim()}\\)`);
+
+    // Inject and render using MathJax
+    preview.innerHTML = escaped;
 
     MathJax.typesetClear([preview]);
-    MathJax.typesetPromise([preview]);
-  }, 250);
+    MathJax.typesetPromise([preview]).catch(err => {
+      preview.innerHTML = '<span style="color:red;">LaTeX rendering error.</span>';
+      console.error('MathJax error:', err);
+    });
+  }, 300);
 }
+
+
+
 
 
     function showSuccess() {
