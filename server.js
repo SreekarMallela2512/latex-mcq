@@ -133,48 +133,323 @@ app.get('/auth/status', (req, res) => {
   }
 });
 
-// MCQ routes
-app.post('/submit', requireAuth, async (req, res) => {
-  const { question, options, correctOption, subject, topic, difficulty } = req.body;
-
-  const correctOptionIndex = parseInt(correctOption, 10) - 1;
-
-  const mcq = new MCQ({
-    question,
-    options,
-    correctOption: correctOptionIndex,
-    subject,
-    topic,
-    difficulty,
-    createdBy: req.session.userId
-  });
-
+// Check if question number already exists for user
+app.get('/check-question-number/:questionNo', requireAuth, async (req, res) => {
   try {
-    await mcq.save();
-    res.send("Question added successfully!");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error saving question.");
+    const { questionNo } = req.params;
+    const existingQuestion = await MCQ.findOne({
+      questionNo: parseInt(questionNo),
+      createdBy: req.session.userId
+    });
+    
+    res.json({ exists: !!existingQuestion });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error checking question number' });
   }
 });
 
-// Get questions based on user role
+// MCQ submission route
+app.post('/submit', requireAuth, async (req, res) => {
+  try {
+    const { 
+      questionNo, 
+      question, 
+      options, 
+      correctOption, 
+      subject, 
+      topic, 
+      difficulty, 
+      pyqType, 
+      session, 
+      year 
+    } = req.body;
+
+    // Validate question number
+    const questionNumber = parseInt(questionNo);
+    if (!questionNumber || questionNumber < 1) {
+      return res.status(400).json({ error: 'Invalid question number' });
+    }
+
+    // Check if question number already exists for this user
+    const existingQuestion = await MCQ.findOne({
+      questionNo: questionNumber,
+      createdBy: req.session.userId
+    });
+
+    if (existingQuestion) {
+      return res.status(400).json({ 
+        error: `Question number ${questionNumber} already exists. Please use a different number.` 
+      });
+    }
+
+    // Validate PYQ fields if needed
+    if (pyqType === 'JEE MAIN PYQ') {
+      if (!session || !year) {
+        return res.status(400).json({ 
+          error: 'Session and Year are required for JEE MAIN PYQ questions' 
+        });
+      }
+
+      const yearNum = parseInt(year);
+      if (yearNum < 2013 || yearNum > new Date().getFullYear()) {
+        return res.status(400).json({ 
+          error: 'Invalid year. Year must be between 2013 and current year.' 
+        });
+      }
+    }
+
+    const correctOptionIndex = parseInt(correctOption, 10) - 1;
+
+    // Create MCQ object with conditional fields
+    const mcqData = {
+      questionNo: questionNumber,
+      question,
+      options,
+      correctOption: correctOptionIndex,
+      subject,
+      topic,
+      difficulty,
+      pyqType: pyqType || 'None',
+      createdBy: req.session.userId
+    };
+
+    // Add PYQ specific fields if applicable
+    if (pyqType === 'JEE MAIN PYQ') {
+      mcqData.session = session;
+      mcqData.year = parseInt(year);
+    }
+
+    const mcq = new MCQ(mcqData);
+    await mcq.save();
+    
+    res.json({ 
+      message: "Question added successfully!",
+      questionId: mcq._id 
+    });
+  } catch (err) {
+    console.error('Error saving question:', err);
+    
+    // Handle duplicate key error
+    if (err.code === 11000) {
+      return res.status(400).json({ 
+        error: `Question number ${req.body.questionNo} already exists. Please use a different number.` 
+      });
+    }
+    
+    res.status(500).json({ error: "Error saving question. Please try again." });
+  }
+});
+
+// Get questions based on user role with enhanced filtering and sorting
 app.get('/questions', requireAuth, async (req, res) => {
   try {
+    const { subject, pyqType, year, session, sortBy = 'questionNo', sortOrder = 'asc' } = req.query;
+    
+    let filter = {};
     let questions;
     
+    // Build filter based on user role
     if (req.session.userRole === 'superuser') {
-      // Super users can see all questions with creator info
-      questions = await MCQ.find().populate('createdBy', 'username');
+      // Super users can see all questions
+      if (subject) filter.subject = subject;
+      if (pyqType && pyqType !== 'all') filter.pyqType = pyqType;
+      if (year) filter.year = parseInt(year);
+      if (session) filter.session = session;
     } else {
       // Regular users can only see their own questions
-      questions = await MCQ.find({ createdBy: req.session.userId });
+      filter.createdBy = req.session.userId;
+      if (subject) filter.subject = subject;
+      if (pyqType && pyqType !== 'all') filter.pyqType = pyqType;
+      if (year) filter.year = parseInt(year);
+      if (session) filter.session = session;
+    }
+
+    // Create sort object
+    const sort = {};
+    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+    if (req.session.userRole === 'superuser') {
+      questions = await MCQ.find(filter)
+        .populate('createdBy', 'username')
+        .sort(sort);
+    } else {
+      questions = await MCQ.find(filter).sort(sort);
     }
     
     res.json(questions);
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Error fetching questions.");
+    console.error('Error fetching questions:', err);
+    res.status(500).json({ error: "Error fetching questions." });
+  }
+});
+
+// Get question statistics
+app.get('/stats', requireAuth, async (req, res) => {
+  try {
+    let matchStage = {};
+    
+    if (req.session.userRole !== 'superuser') {
+      matchStage.createdBy = new mongoose.Types.ObjectId(req.session.userId);
+    }
+
+    const stats = await MCQ.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: null,
+          totalQuestions: { $sum: 1 },
+          subjectBreakdown: {
+            $push: {
+              subject: "$subject",
+              pyqType: "$pyqType",
+              difficulty: "$difficulty"
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          totalQuestions: 1,
+          subjects: {
+            $reduce: {
+              input: "$subjectBreakdown",
+              initialValue: {},
+              in: {
+                $mergeObjects: [
+                  "$$value",
+                  {
+                    $arrayToObject: [[{
+                      k: "$$this.subject",
+                      v: { $add: [{ $ifNull: [{ $getField: { field: "$$this.subject", input: "$$value" } }, 0] }, 1] }
+                    }]]
+                  }
+                ]
+              }
+            }
+          },
+          pyqTypes: {
+            $reduce: {
+              input: "$subjectBreakdown",
+              initialValue: {},
+              in: {
+                $mergeObjects: [
+                  "$$value",
+                  {
+                    $arrayToObject: [[{
+                      k: "$$this.pyqType",
+                      v: { $add: [{ $ifNull: [{ $getField: { field: "$$this.pyqType", input: "$$value" } }, 0] }, 1] }
+                    }]]
+                  }
+                ]
+              }
+            }
+          },
+          difficulties: {
+            $reduce: {
+              input: "$subjectBreakdown",
+              initialValue: {},
+              in: {
+                $mergeObjects: [
+                  "$$value",
+                  {
+                    $arrayToObject: [[{
+                      k: "$$this.difficulty",
+                      v: { $add: [{ $ifNull: [{ $getField: { field: "$$this.difficulty", input: "$$value" } }, 0] }, 1] }
+                    }]]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    res.json(stats[0] || { totalQuestions: 0, subjects: {}, pyqTypes: {}, difficulties: {} });
+  } catch (err) {
+    console.error('Error fetching stats:', err);
+    res.status(500).json({ error: "Error fetching statistics." });
+  }
+});
+
+// Delete question (only own questions for regular users)
+app.delete('/questions/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    let filter = { _id: id };
+    
+    // Regular users can only delete their own questions
+    if (req.session.userRole !== 'superuser') {
+      filter.createdBy = req.session.userId;
+    }
+    
+    const deletedQuestion = await MCQ.findOneAndDelete(filter);
+    
+    if (!deletedQuestion) {
+      return res.status(404).json({ error: 'Question not found or access denied' });
+    }
+    
+    res.json({ message: 'Question deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting question:', err);
+    res.status(500).json({ error: 'Error deleting question' });
+  }
+});
+
+// Update question (only own questions for regular users)
+app.put('/questions/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    let filter = { _id: id };
+    
+    // Regular users can only update their own questions
+    if (req.session.userRole !== 'superuser') {
+      filter.createdBy = req.session.userId;
+    }
+    
+    // If updating question number, check for duplicates
+    if (updateData.questionNo) {
+      const existingQuestion = await MCQ.findOne({
+        questionNo: parseInt(updateData.questionNo),
+        createdBy: req.session.userId,
+        _id: { $ne: id }
+      });
+      
+      if (existingQuestion) {
+        return res.status(400).json({ 
+          error: `Question number ${updateData.questionNo} already exists` 
+        });
+      }
+    }
+    
+    const updatedQuestion = await MCQ.findOneAndUpdate(
+      filter, 
+      updateData, 
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedQuestion) {
+      return res.status(404).json({ error: 'Question not found or access denied' });
+    }
+    
+    res.json({ 
+      message: 'Question updated successfully', 
+      question: updatedQuestion 
+    });
+  } catch (err) {
+    console.error('Error updating question:', err);
+    
+    if (err.code === 11000) {
+      return res.status(400).json({ 
+        error: 'Question number already exists' 
+      });
+    }
+    
+    res.status(500).json({ error: 'Error updating question' });
   }
 });
 
@@ -189,6 +464,30 @@ app.get('/users', requireSuperUser, async (req, res) => {
   }
 });
 
+// Get unique years from database for filtering
+app.get('/available-years', requireAuth, async (req, res) => {
+  try {
+    let matchStage = { year: { $exists: true, $ne: null } };
+    
+    if (req.session.userRole !== 'superuser') {
+      matchStage.createdBy = new mongoose.Types.ObjectId(req.session.userId);
+    }
+
+    const years = await MCQ.distinct('year', matchStage);
+    res.json(years.sort((a, b) => b - a)); // Sort descending
+  } catch (err) {
+    console.error('Error fetching available years:', err);
+    res.status(500).json({ error: 'Error fetching available years' });
+  }
+});
+
 app.listen(3000, () => {
   console.log('Server started on http://localhost:3000');
+  console.log('Features added:');
+  console.log('✅ Question numbering system');
+  console.log('✅ PYQ type classification');
+  console.log('✅ JEE MAIN PYQ with session and year');
+  console.log('✅ Enhanced filtering and sorting');
+  console.log('✅ Question statistics');
+  console.log('✅ CRUD operations for questions');
 });

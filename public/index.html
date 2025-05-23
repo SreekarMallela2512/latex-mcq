@@ -21,6 +21,9 @@
     <h1>Submit MCQ (LaTeX Supported)</h1>
 
     <form id="mcqForm" method="POST">
+      <label>Question Number:</label>
+      <input type="text" name="questionNo" id="questionNo" placeholder="e.g., Q1, 1, A-1, etc." required />
+
       <label>Question (LaTeX):</label>
       <textarea name="question" id="question" rows="3" oninput="renderLatex()" required></textarea>
       <h3>Preview:</h3>
@@ -66,8 +69,45 @@
         <option value="hard">Hard</option>
       </select>
 
+      <!-- PYQ Section -->
+      <div class="pyq-section">
+        <h3>Previous Year Question (PYQ) Details</h3>
+        
+        <label for="pyqType">PYQ Type:</label>
+        <select name="pyqType" id="pyqType" onchange="togglePyqFields()" required>
+          <option value="Not PYQ">Not PYQ</option>
+          <option value="JEE MAIN PYQ">JEE MAIN PYQ</option>
+          <option value="JEE ADVANCED PYQ">JEE ADVANCED PYQ</option>
+          <option value="NEET PYQ">NEET PYQ</option>
+          <option value="Other">Other</option>
+        </select>
+
+        <div id="pyqDetails" style="display: none;">
+          <!-- Session selection (only for JEE MAIN) -->
+          <div id="sessionSection" style="display: none;">
+            <label>Session:</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="session" value="Session 1" />
+                Session 1
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="session" value="Session 2" />
+                Session 2
+              </label>
+            </div>
+          </div>
+
+          <!-- Year selection -->
+          <label for="year">Year:</label>
+          <select name="year" id="year">
+            <option value="">-- Select Year --</option>
+          </select>
+        </div>
+      </div>
+
       <button type="submit">Save</button>
-      <button type="button" onclick="form.reset(); preview.innerHTML='';">Clear Form</button>
+      <button type="button" onclick="clearForm()">Clear Form</button>
       <div id="successMessage"></div>
     </form>
     
@@ -93,6 +133,7 @@
         
         currentUser = data.user;
         updateUserInterface();
+        populateYearDropdown();
       } catch (error) {
         window.location.href = '/login.html';
       }
@@ -107,6 +148,54 @@
       
       const questionsTitle = document.getElementById('questionsTitle');
       questionsTitle.textContent = currentUser.role === 'superuser' ? 'All Questions' : 'Your Questions';
+    }
+
+    // Populate year dropdown
+    function populateYearDropdown() {
+      const yearSelect = document.getElementById('year');
+      const currentYear = new Date().getFullYear();
+      
+      for (let year = currentYear; year >= 2000; year--) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        yearSelect.appendChild(option);
+      }
+    }
+
+    // Toggle PYQ fields based on selection
+    function togglePyqFields() {
+      const pyqType = document.getElementById('pyqType').value;
+      const pyqDetails = document.getElementById('pyqDetails');
+      const sessionSection = document.getElementById('sessionSection');
+      const yearSelect = document.getElementById('year');
+      
+      if (pyqType === 'Not PYQ') {
+        pyqDetails.style.display = 'none';
+        sessionSection.style.display = 'none';
+        yearSelect.required = false;
+        // Clear radio buttons
+        document.querySelectorAll('input[name="session"]').forEach(radio => {
+          radio.checked = false;
+          radio.required = false;
+        });
+      } else {
+        pyqDetails.style.display = 'block';
+        yearSelect.required = true;
+        
+        if (pyqType === 'JEE MAIN PYQ') {
+          sessionSection.style.display = 'block';
+          document.querySelectorAll('input[name="session"]').forEach(radio => {
+            radio.required = true;
+          });
+        } else {
+          sessionSection.style.display = 'none';
+          document.querySelectorAll('input[name="session"]').forEach(radio => {
+            radio.checked = false;
+            radio.required = false;
+          });
+        }
+      }
     }
 
     // Logout functionality
@@ -177,6 +266,18 @@
       return true;
     }
 
+    function clearForm() {
+      document.getElementById('mcqForm').reset();
+      document.getElementById('preview').innerHTML = '';
+      // Clear option previews
+      for (let i = 1; i <= 4; i++) {
+        document.getElementById(`preview-option${i}`).innerHTML = '';
+      }
+      // Hide PYQ details
+      document.getElementById('pyqDetails').style.display = 'none';
+      document.getElementById('sessionSection').style.display = 'none';
+    }
+
     const physicsTopics = ["Physical World and Measurement", "Kinematics", "Laws of Motion", "Work, Energy and Power", "Rotational Motion", "Gravitation", "Properties of Solids and Liquids", "Thermodynamics", "Kinetic Theory of Gases", "Oscillations and Waves", "Electrostatics", "Current Electricity", "Magnetic Effects of Current and Magnetism", "Electromagnetic Induction and Alternating Currents", "Electromagnetic Waves", "Optics", "Dual Nature of Matter and Radiation", "Atoms and Nuclei", "Electronic Devices", "Communication Systems"];
 
     const chemistryTopics = ["Some Basic Concepts of Chemistry (Mole Concept)", "Atomic Structure", "Chemical Bonding and Molecular Structure", "Chemical Thermodynamics", "Solutions", "Equilibrium", "Redox Reactions and Electrochemistry", "Chemical Kinetics", "Surface Chemistry", "Classification of Elements and Periodicity in Properties", "General Principles and Processes of Isolation of Metals", "Hydrogen", "S-block elements (Alkali and Alkaline earth metals)", "P-block elements", "D and F block elements", "Coordination Compounds", "Environmental Chemistry", "Organic Chemistry – Basic Principles and Techniques", "Hydrocarbons", "Haloalkanes and Haloarenes", "Alcohols, Phenols, and Ethers", "Aldehydes, Ketones, and Carboxylic Acids", "Organic Compounds Containing Nitrogen", "Polymers", "Biomolecules"];
@@ -213,6 +314,7 @@
 
       const formData = new FormData(form);
       const data = {
+        questionNo: formData.get('questionNo'),
         question: formData.get('question'),
         options: [
           formData.get('option1'),
@@ -224,6 +326,9 @@
         subject: formData.get('subject'),
         topic: formData.get('topic'),
         difficulty: formData.get('difficulty'),
+        pyqType: formData.get('pyqType'),
+        session: formData.get('session') || 'N/A',
+        year: formData.get('year') ? parseInt(formData.get('year')) : null
       };
 
       try {
@@ -235,12 +340,7 @@
 
         if (response.ok) {
           alert('Question added successfully!');
-          form.reset();
-          document.getElementById('preview').innerHTML = '';
-          // Clear option previews
-          for (let i = 1; i <= 4; i++) {
-            document.getElementById(`preview-option${i}`).innerHTML = '';
-          }
+          clearForm();
         } else {
           const errorText = await response.text();
           alert('Failed to add question: ' + errorText);
@@ -276,14 +376,29 @@
           if (currentUser.role === 'superuser' && q.createdBy) {
             creatorInfo = `<div class="creator-info">Created by: <strong>${q.createdBy.username || 'Unknown'}</strong></div>`;
           }
+
+          let pyqInfo = '';
+          if (q.pyqType && q.pyqType !== 'Not PYQ') {
+            pyqInfo = `<div class="pyq-info">
+              <strong>PYQ:</strong> ${q.pyqType}
+              ${q.session && q.session !== 'N/A' ? ` - ${q.session}` : ''}
+              ${q.year ? ` (${q.year})` : ''}
+            </div>`;
+          }
           
           div.innerHTML = `
+            <div class="question-header">
+              <strong>Question No: ${q.questionNo}</strong>
+            </div>
             <strong>Q${i + 1}:</strong> ${q.question}<br/>
             <ul>
               ${q.options.map((opt, idx) => `
                 <li${idx === q.correctOption ? ' style="font-weight:bold;color:green;"' : ''}>${String.fromCharCode(65 + idx)}. ${opt}</li>`).join('')}
             </ul>
-            <em>Subject:</em> ${q.subject}, <em>Topic:</em> ${q.topic}, <em>Difficulty:</em> ${q.difficulty}
+            <div class="question-meta">
+              <em>Subject:</em> ${q.subject}, <em>Topic:</em> ${q.topic}, <em>Difficulty:</em> ${q.difficulty}
+            </div>
+            ${pyqInfo}
             ${creatorInfo}
             <hr/>
           `;
