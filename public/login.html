@@ -51,14 +51,6 @@
           <input type="password" id="regPassword" required minlength="6" />
         </div>
         
-        <div class="input-group">
-          <label for="userRole">Account Type</label>
-          <select id="userRole" required>
-            <option value="user">Regular User</option>
-            <option value="superuser">Super User</option>
-          </select>
-        </div>
-        
         <button type="submit" class="auth-btn">Register</button>
       </form>
 
@@ -127,13 +119,12 @@
       const username = document.getElementById('regUsername').value;
       const email = document.getElementById('regEmail').value;
       const password = document.getElementById('regPassword').value;
-      const role = document.getElementById('userRole').value;
       
       try {
         const response = await fetch('/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, email, password, role })
+          body: JSON.stringify({ username, email, password })
         });
         
         const data = await response.json();
