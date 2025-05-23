@@ -9,34 +9,41 @@
 </head>
 <body>
   <div class="container">
+    <!-- User Info Bar -->
+    <div class="user-info-bar">
+      <div class="user-info">
+        <span id="welcomeMessage">Loading...</span>
+        <span id="userRole" class="role-badge"></span>
+      </div>
+      <button id="logoutBtn" class="logout-btn">Logout</button>
+    </div>
+
     <h1>Submit MCQ (LaTeX Supported)</h1>
 
     <form id="mcqForm" method="POST">
-
       <label>Question (LaTeX):</label>
       <textarea name="question" id="question" rows="3" oninput="renderLatex()" required></textarea>
-  <h3>Preview:</h3>
-    <div id="preview"></div>
-     <label>Option 1:</label>
-<input type="text" name="option1" id="option1" required oninput="renderOptionLatex(1)" />
-<div class="option-preview" id="preview-option1"></div>
+      <h3>Preview:</h3>
+      <div id="preview"></div>
+      
+      <label>Option 1:</label>
+      <input type="text" name="option1" id="option1" required oninput="renderOptionLatex(1)" />
+      <div class="option-preview" id="preview-option1"></div>
 
-<label>Option 2:</label>
-<input type="text" name="option2" id="option2" required oninput="renderOptionLatex(2)" />
-<div class="option-preview" id="preview-option2"></div>
+      <label>Option 2:</label>
+      <input type="text" name="option2" id="option2" required oninput="renderOptionLatex(2)" />
+      <div class="option-preview" id="preview-option2"></div>
 
-<label>Option 3:</label>
-<input type="text" name="option3" id="option3" required oninput="renderOptionLatex(3)" />
-<div class="option-preview" id="preview-option3"></div>
+      <label>Option 3:</label>
+      <input type="text" name="option3" id="option3" required oninput="renderOptionLatex(3)" />
+      <div class="option-preview" id="preview-option3"></div>
 
-<label>Option 4:</label>
-<input type="text" name="option4" id="option4" required oninput="renderOptionLatex(4)" />
-<div class="option-preview" id="preview-option4"></div>
-
+      <label>Option 4:</label>
+      <input type="text" name="option4" id="option4" required oninput="renderOptionLatex(4)" />
+      <div class="option-preview" id="preview-option4"></div>
 
       <label>Correct Option (1-4):</label>
-<input type="number" name="correctOption" min="1" max="4" required>
-
+      <input type="number" name="correctOption" min="1" max="4" required>
 
       <label for="subject">Subject:</label>
       <select name="subject" id="subject" required onchange="updateTopics()">
@@ -63,78 +70,104 @@
       <button type="button" onclick="form.reset(); preview.innerHTML='';">Clear Form</button>
       <div id="successMessage"></div>
     </form>
+    
     <hr />
-<h2>Stored Questions</h2>
-<button onclick="loadQuestions()">🔍 View All Questions</button>
-<div id="questionList"></div>
-
+    <h2 id="questionsTitle">Your Questions</h2>
+    <button onclick="loadQuestions()">🔍 View Questions</button>
+    <div id="questionList"></div>
   </div>
 
   <script>
+    let currentUser = null;
 
+    // Check authentication on page load
+    window.onload = async () => {
+      try {
+        const response = await fetch('/auth/status');
+        const data = await response.json();
+        
+        if (!data.authenticated) {
+          window.location.href = '/login.html';
+          return;
+        }
+        
+        currentUser = data.user;
+        updateUserInterface();
+      } catch (error) {
+        window.location.href = '/login.html';
+      }
+    };
 
- 
- let previewTimeout;
-
-function renderLatex() {
-  clearTimeout(previewTimeout); // Debounce rendering
-
-  previewTimeout = setTimeout(() => {
-    const input = document.getElementById('question').value.trim();
-    const preview = document.getElementById('preview');
-
-    if (!input) {
-      preview.innerHTML = '<em style="color: #777;">Preview will appear here...</em>';
-      return;
+    function updateUserInterface() {
+      document.getElementById('welcomeMessage').textContent = `Welcome, ${currentUser.username}!`;
+      
+      const roleElement = document.getElementById('userRole');
+      roleElement.textContent = currentUser.role === 'superuser' ? 'Super User' : 'User';
+      roleElement.className = `role-badge ${currentUser.role}`;
+      
+      const questionsTitle = document.getElementById('questionsTitle');
+      questionsTitle.textContent = currentUser.role === 'superuser' ? 'All Questions' : 'Your Questions';
     }
 
-    // Escape HTML to prevent tag injection
-    let escaped = input.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-    // Replace $$...$$ with \[...\] (display math) if not already using \[ \]
-    escaped = escaped.replace(/\$\$(.+?)\$\$/gs, (_, match) => `\\[${match.trim()}\\]`);
-
-    // Replace $...$ with \(...\) (inline math) if not already using \( \)
-    escaped = escaped.replace(/(^|[^\\])\$(.+?)\$/g, (_, prefix, match) => `${prefix}\\(${match.trim()}\\)`);
-
-    // Inject and render using MathJax
-    preview.innerHTML = escaped;
-
-    MathJax.typesetClear([preview]);
-    MathJax.typesetPromise([preview]).catch(err => {
-      preview.innerHTML = '<span style="color:red;">LaTeX rendering error.</span>';
-      console.error('MathJax error:', err);
+    // Logout functionality
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      try {
+        await fetch('/logout', { method: 'POST' });
+        window.location.href = '/login.html';
+      } catch (error) {
+        console.error('Logout failed:', error);
+      }
     });
-  }, 300);
-}
-function renderOptionLatex(num) {
-  const input = document.getElementById(`option${num}`).value.trim();
-  const preview = document.getElementById(`preview-option${num}`);
 
-  if (!input) {
-    preview.innerHTML = '<em style="color:#777;">Preview...</em>';
-    return;
-  }
+    let previewTimeout;
 
-  let escaped = input.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    function renderLatex() {
+      clearTimeout(previewTimeout);
 
-  // Convert $$...$$ to \[...\]
-  escaped = escaped.replace(/\$\$(.+?)\$\$/gs, (_, match) => `\\[${match.trim()}\\]`);
-  // Convert $...$ to \(...\)
-  escaped = escaped.replace(/(^|[^\\])\$(.+?)\$/g, (_, prefix, match) => `${prefix}\\(${match.trim()}\\)`);
+      previewTimeout = setTimeout(() => {
+        const input = document.getElementById('question').value.trim();
+        const preview = document.getElementById('preview');
 
-  preview.innerHTML = escaped;
+        if (!input) {
+          preview.innerHTML = '<em style="color: #777;">Preview will appear here...</em>';
+          return;
+        }
 
-  MathJax.typesetClear([preview]);
-  MathJax.typesetPromise([preview]).catch(err => {
-    preview.innerHTML = '<span style="color:red;">Rendering error</span>';
-    console.error('MathJax error:', err);
-  });
-}
+        let escaped = input.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        escaped = escaped.replace(/\$\$(.+?)\$\$/gs, (_, match) => `\\[${match.trim()}\\]`);
+        escaped = escaped.replace(/(^|[^\\])\$(.+?)\$/g, (_, prefix, match) => `${prefix}\\(${match.trim()}\\)`);
 
+        preview.innerHTML = escaped;
 
+        MathJax.typesetClear([preview]);
+        MathJax.typesetPromise([preview]).catch(err => {
+          preview.innerHTML = '<span style="color:red;">LaTeX rendering error.</span>';
+          console.error('MathJax error:', err);
+        });
+      }, 300);
+    }
 
+    function renderOptionLatex(num) {
+      const input = document.getElementById(`option${num}`).value.trim();
+      const preview = document.getElementById(`preview-option${num}`);
 
+      if (!input) {
+        preview.innerHTML = '<em style="color:#777;">Preview...</em>';
+        return;
+      }
+
+      let escaped = input.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      escaped = escaped.replace(/\$\$(.+?)\$\$/gs, (_, match) => `\\[${match.trim()}\\]`);
+      escaped = escaped.replace(/(^|[^\\])\$(.+?)\$/g, (_, prefix, match) => `${prefix}\\(${match.trim()}\\)`);
+
+      preview.innerHTML = escaped;
+
+      MathJax.typesetClear([preview]);
+      MathJax.typesetPromise([preview]).catch(err => {
+        preview.innerHTML = '<span style="color:red;">Rendering error</span>';
+        console.error('MathJax error:', err);
+      });
+    }
 
     function showSuccess() {
       const msg = document.getElementById("successMessage");
@@ -144,11 +177,11 @@ function renderOptionLatex(num) {
       return true;
     }
 
-    const physicsTopics = [ "Physical World and Measurement", "Kinematics", "Laws of Motion", "Work, Energy and Power", "Rotational Motion", "Gravitation", "Properties of Solids and Liquids", "Thermodynamics", "Kinetic Theory of Gases", "Oscillations and Waves", "Electrostatics", "Current Electricity", "Magnetic Effects of Current and Magnetism", "Electromagnetic Induction and Alternating Currents", "Electromagnetic Waves", "Optics", "Dual Nature of Matter and Radiation", "Atoms and Nuclei", "Electronic Devices", "Communication Systems" ];
+    const physicsTopics = ["Physical World and Measurement", "Kinematics", "Laws of Motion", "Work, Energy and Power", "Rotational Motion", "Gravitation", "Properties of Solids and Liquids", "Thermodynamics", "Kinetic Theory of Gases", "Oscillations and Waves", "Electrostatics", "Current Electricity", "Magnetic Effects of Current and Magnetism", "Electromagnetic Induction and Alternating Currents", "Electromagnetic Waves", "Optics", "Dual Nature of Matter and Radiation", "Atoms and Nuclei", "Electronic Devices", "Communication Systems"];
 
-    const chemistryTopics = [ "Some Basic Concepts of Chemistry (Mole Concept)", "Atomic Structure", "Chemical Bonding and Molecular Structure", "Chemical Thermodynamics", "Solutions", "Equilibrium", "Redox Reactions and Electrochemistry", "Chemical Kinetics", "Surface Chemistry", "Classification of Elements and Periodicity in Properties", "General Principles and Processes of Isolation of Metals", "Hydrogen", "S-block elements (Alkali and Alkaline earth metals)", "P-block elements", "D and F block elements", "Coordination Compounds", "Environmental Chemistry", "Organic Chemistry – Basic Principles and Techniques", "Hydrocarbons", "Haloalkanes and Haloarenes", "Alcohols, Phenols, and Ethers", "Aldehydes, Ketones, and Carboxylic Acids", "Organic Compounds Containing Nitrogen", "Polymers", "Biomolecules" ];
+    const chemistryTopics = ["Some Basic Concepts of Chemistry (Mole Concept)", "Atomic Structure", "Chemical Bonding and Molecular Structure", "Chemical Thermodynamics", "Solutions", "Equilibrium", "Redox Reactions and Electrochemistry", "Chemical Kinetics", "Surface Chemistry", "Classification of Elements and Periodicity in Properties", "General Principles and Processes of Isolation of Metals", "Hydrogen", "S-block elements (Alkali and Alkaline earth metals)", "P-block elements", "D and F block elements", "Coordination Compounds", "Environmental Chemistry", "Organic Chemistry – Basic Principles and Techniques", "Hydrocarbons", "Haloalkanes and Haloarenes", "Alcohols, Phenols, and Ethers", "Aldehydes, Ketones, and Carboxylic Acids", "Organic Compounds Containing Nitrogen", "Polymers", "Biomolecules"];
 
-    const mathsTopics = [ "Sets, Relations and Functions", "Complex Numbers and Quadratic Equations", "Matrices and Determinants", "Permutations and Combinations", "Mathematical Induction", "Binomial Theorem", "Sequences and Series", "Limits, Continuity and Differentiability", "Integral Calculus", "Differential Equations", "Coordinate Geometry", "3D Geometry", "Vector Algebra", "Statistics and Probability", "Trigonometry", "Mathematical Reasoning" ];
+    const mathsTopics = ["Sets, Relations and Functions", "Complex Numbers and Quadratic Equations", "Matrices and Determinants", "Permutations and Combinations", "Mathematical Induction", "Binomial Theorem", "Sequences and Series", "Limits, Continuity and Differentiability", "Integral Calculus", "Differential Equations", "Coordinate Geometry", "3D Geometry", "Vector Algebra", "Statistics and Probability", "Trigonometry", "Mathematical Reasoning"];
 
     function updateTopics() {
       const subject = document.getElementById("subject").value;
@@ -172,83 +205,97 @@ function renderOptionLatex(num) {
         topicSelect.appendChild(option);
       });
     }
-    
-  const form = document.getElementById('mcqForm');
 
-  form.addEventListener('submit', async function(event) {
-    event.preventDefault(); // Prevent normal form submission
+    const form = document.getElementById('mcqForm');
 
-    const formData = new FormData(form);
-    const data = {
-      question: formData.get('question'),
-      options: [
-        formData.get('option1'),
-        formData.get('option2'),
-        formData.get('option3'),
-        formData.get('option4')
-      ],
-      correctOption: formData.get('correctOption'),
-      subject: formData.get('subject'),
-      topic: formData.get('topic'),
-      difficulty: formData.get('difficulty'),
-    };
+    form.addEventListener('submit', async function(event) {
+      event.preventDefault();
 
-    try {
-      const response = await fetch('/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
+      const formData = new FormData(form);
+      const data = {
+        question: formData.get('question'),
+        options: [
+          formData.get('option1'),
+          formData.get('option2'),
+          formData.get('option3'),
+          formData.get('option4')
+        ],
+        correctOption: formData.get('correctOption'),
+        subject: formData.get('subject'),
+        topic: formData.get('topic'),
+        difficulty: formData.get('difficulty'),
+      };
 
-      if (response.ok) {
-        alert('Question added successfully!');
-        form.reset();
-        document.getElementById('preview').innerHTML = '';
-      } else {
-        alert('Failed to add question.');
+      try {
+        const response = await fetch('/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        if (response.ok) {
+          alert('Question added successfully!');
+          form.reset();
+          document.getElementById('preview').innerHTML = '';
+          // Clear option previews
+          for (let i = 1; i <= 4; i++) {
+            document.getElementById(`preview-option${i}`).innerHTML = '';
+          }
+        } else {
+          const errorText = await response.text();
+          alert('Failed to add question: ' + errorText);
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
       }
-    } catch (error) {
-      alert('Error: ' + error.message);
+    });
+
+    async function loadQuestions() {
+      try {
+        const response = await fetch('/questions');
+        
+        if (response.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+        
+        const questions = await response.json();
+        const list = document.getElementById('questionList');
+        list.innerHTML = '';
+
+        if (questions.length === 0) {
+          list.innerHTML = '<p>No questions found.</p>';
+          return;
+        }
+
+        questions.forEach((q, i) => {
+          const div = document.createElement('div');
+          div.className = 'question-card';
+          
+          let creatorInfo = '';
+          if (currentUser.role === 'superuser' && q.createdBy) {
+            creatorInfo = `<div class="creator-info">Created by: <strong>${q.createdBy.username || 'Unknown'}</strong></div>`;
+          }
+          
+          div.innerHTML = `
+            <strong>Q${i + 1}:</strong> ${q.question}<br/>
+            <ul>
+              ${q.options.map((opt, idx) => `
+                <li${idx === q.correctOption ? ' style="font-weight:bold;color:green;"' : ''}>${String.fromCharCode(65 + idx)}. ${opt}</li>`).join('')}
+            </ul>
+            <em>Subject:</em> ${q.subject}, <em>Topic:</em> ${q.topic}, <em>Difficulty:</em> ${q.difficulty}
+            ${creatorInfo}
+            <hr/>
+          `;
+          list.appendChild(div);
+        });
+
+        MathJax.typesetPromise([list]);
+      } catch (error) {
+        console.error('Error loading questions:', error);
+        alert('Error loading questions. Please try again.');
+      }
     }
-  });
-// change
-async function loadQuestions() {
-  const response = await fetch('/questions');
-  const questions = await response.json();
-
-  const list = document.getElementById('questionList');
-  list.innerHTML = '';
-
-  if (questions.length === 0) {
-    list.innerHTML = '<p>No questions found.</p>';
-    return;
-  }
-
-  questions.forEach((q, i) => {
-    const div = document.createElement('div');
-    div.className = 'question-card';
-    div.innerHTML = `
-      <strong>Q${i + 1}:</strong> ${q.question}<br/>
-      <ul>
-        ${q.options.map((opt, idx) => `
-          <li${idx === q.correctOption ? ' style="font-weight:bold;color:green;"' : ''}>${String.fromCharCode(65 + idx)}. ${opt}</li>`).join('')}
-      </ul>
-      <em>Subject:</em> ${q.subject}, <em>Topic:</em> ${q.topic}, <em>Difficulty:</em> ${q.difficulty}
-      <hr/>
-    `;
-    list.appendChild(div);
-  });
-
-  MathJax.typesetPromise([list]); // Render LaTeX
-}
-
-
   </script>
 </body>
 </html>
-
-
-
-
-
-
