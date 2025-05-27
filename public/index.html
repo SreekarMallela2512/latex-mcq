@@ -83,6 +83,12 @@
         </select>
 
         <div id="pyqDetails" style="display: none;">
+          <!-- Combined Date-Year Dropdown -->
+          <label for="examDate">Exam Date & Year:</label>
+          <select name="examDate" id="examDate">
+            <option value="">-- Select Exam Date --</option>
+          </select>
+
           <!-- Session selection (only for JEE MAIN) -->
           <div id="sessionSection" style="display: none;">
             <label>Session:</label>
@@ -97,12 +103,6 @@
               </label>
             </div>
           </div>
-
-          <!-- Year selection -->
-          <label for="year">Year:</label>
-          <select name="year" id="year">
-            <option value="">-- Select Year --</option>
-          </select>
         </div>
       </div>
 
@@ -133,7 +133,7 @@
         
         currentUser = data.user;
         updateUserInterface();
-        populateYearDropdown();
+        populateExamDates();
       } catch (error) {
         window.location.href = '/login.html';
       }
@@ -150,17 +150,61 @@
       questionsTitle.textContent = currentUser.role === 'superuser' ? 'All Questions' : 'Your Questions';
     }
 
-    // Populate year dropdown
-    function populateYearDropdown() {
-      const yearSelect = document.getElementById('year');
+    // Populate exam date dropdown with common exam dates
+    function populateExamDates() {
+      const examDateSelect = document.getElementById('examDate');
       const currentYear = new Date().getFullYear();
       
-      for (let year = currentYear; year >= 2000; year--) {
-        const option = document.createElement('option');
-        option.value = year;
-        option.textContent = year;
-        yearSelect.appendChild(option);
+      // Common exam dates for different exams
+      const examDates = [];
+      
+      // Generate dates for last 10 years
+      for (let year = currentYear; year >= currentYear - 10; year--) {
+        // JEE MAIN typical dates (April, May, January)
+        examDates.push(`January ${year}`);
+        examDates.push(`April ${year}`);
+        examDates.push(`May ${year}`);
+        examDates.push(`September ${year}`);
+        
+        // JEE ADVANCED typical date (May/June)
+        examDates.push(`May ${year} (Advanced)`);
+        examDates.push(`June ${year} (Advanced)`);
+        
+        // NEET typical date (May)
+        examDates.push(`May ${year} (NEET)`);
+        
+        // Add some specific dates if known
+        if (year === 2023) {
+          examDates.push('24-Jan-2023', '25-Jan-2023', '29-Jan-2023', '30-Jan-2023', '31-Jan-2023', '01-Feb-2023');
+          examDates.push('13-Apr-2023', '15-Apr-2023', '20-Apr-2023');
+          examDates.push('08-May-2023', '09-May-2023', '10-May-2023', '11-May-2023', '12-May-2023');
+          examDates.push('07-May-2023 (NEET)');
+          examDates.push('03-Jun-2023 (JEE Advanced)');
+        }
+        
+        if (year === 2024) {
+          examDates.push('27-Jan-2024', '29-Jan-2024', '30-Jan-2024', '31-Jan-2024', '01-Feb-2024');
+          examDates.push('04-Apr-2024', '06-Apr-2024', '08-Apr-2024', '09-Apr-2024', '15-Apr-2024');
+          examDates.push('02-May-2024', '04-May-2024');
+          examDates.push('05-May-2024 (NEET)');
+          examDates.push('26-May-2024 (JEE Advanced)');
+        }
       }
+      
+      // Remove duplicates and sort
+      const uniqueDates = [...new Set(examDates)].sort((a, b) => {
+        // Extract year for sorting
+        const yearA = parseInt(a.match(/\d{4}/)[0]);
+        const yearB = parseInt(b.match(/\d{4}/)[0]);
+        return yearB - yearA; // Descending order
+      });
+      
+      uniqueDates.forEach(date => {
+        const option = document.createElement('option');
+        option.value = date;
+        option.textContent = date;
+        examDateSelect.appendChild(option);
+      });
     }
 
     // Toggle PYQ fields based on selection
@@ -168,12 +212,12 @@
       const pyqType = document.getElementById('pyqType').value;
       const pyqDetails = document.getElementById('pyqDetails');
       const sessionSection = document.getElementById('sessionSection');
-      const yearSelect = document.getElementById('year');
+      const examDateSelect = document.getElementById('examDate');
       
       if (pyqType === 'Not PYQ') {
         pyqDetails.style.display = 'none';
         sessionSection.style.display = 'none';
-        yearSelect.required = false;
+        examDateSelect.required = false;
         // Clear radio buttons
         document.querySelectorAll('input[name="session"]').forEach(radio => {
           radio.checked = false;
@@ -181,7 +225,7 @@
         });
       } else {
         pyqDetails.style.display = 'block';
-        yearSelect.required = true;
+        examDateSelect.required = true;
         
         if (pyqType === 'JEE MAIN PYQ') {
           sessionSection.style.display = 'block';
@@ -195,7 +239,36 @@
             radio.required = false;
           });
         }
+        
+        // Filter exam dates based on PYQ type
+        filterExamDates(pyqType);
       }
+    }
+
+    // Filter exam dates based on PYQ type
+    function filterExamDates(pyqType) {
+      const examDateSelect = document.getElementById('examDate');
+      const options = Array.from(examDateSelect.options);
+      
+      options.forEach(option => {
+        if (option.value === '') return; // Keep the default option
+        
+        let shouldShow = true;
+        
+        if (pyqType === 'JEE ADVANCED PYQ') {
+          shouldShow = option.textContent.includes('Advanced') || 
+                      option.textContent.includes('Jun') || 
+                      option.textContent.includes('May') && !option.textContent.includes('NEET');
+        } else if (pyqType === 'NEET PYQ') {
+          shouldShow = option.textContent.includes('NEET') || 
+                      (option.textContent.includes('May') && !option.textContent.includes('Advanced'));
+        } else if (pyqType === 'JEE MAIN PYQ') {
+          shouldShow = !option.textContent.includes('Advanced') && 
+                      !option.textContent.includes('NEET');
+        }
+        
+        option.style.display = shouldShow ? 'block' : 'none';
+      });
     }
 
     // Logout functionality
@@ -328,7 +401,7 @@
         difficulty: formData.get('difficulty'),
         pyqType: formData.get('pyqType'),
         session: formData.get('session') || 'N/A',
-        year: formData.get('year') ? parseInt(formData.get('year')) : null
+        examDate: formData.get('examDate') || null
       };
 
       try {
@@ -382,7 +455,7 @@
             pyqInfo = `<div class="pyq-info">
               <strong>PYQ:</strong> ${q.pyqType}
               ${q.session && q.session !== 'N/A' ? ` - ${q.session}` : ''}
-              ${q.year ? ` (${q.year})` : ''}
+              ${q.examDate ? ` (${q.examDate})` : q.year ? ` (${q.year})` : ''}
             </div>`;
           }
           
