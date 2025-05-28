@@ -133,22 +133,6 @@ app.get('/auth/status', (req, res) => {
   }
 });
 
-// Check if question number already exists for user
-app.get('/check-question-number/:questionNo', requireAuth, async (req, res) => {
-  try {
-    const { questionNo } = req.params;
-    const existingQuestion = await MCQ.findOne({
-      questionNo: parseInt(questionNo),
-      createdBy: req.session.userId
-    });
-    
-    res.json({ exists: !!existingQuestion });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error checking question number' });
-  }
-});
-
 // MCQ submission route
 app.post('/submit', requireAuth, async (req, res) => {
   try {
@@ -161,40 +145,23 @@ app.post('/submit', requireAuth, async (req, res) => {
       topic, 
       difficulty, 
       pyqType, 
-      session, 
-      year 
+      shift, 
+      year,
+      examDate
     } = req.body;
-
-    // Validate question number
-    const questionNumber = parseInt(questionNo);
-    if (!questionNumber || questionNumber < 1) {
-      return res.status(400).json({ error: 'Invalid question number' });
-    }
-
-    // Check if question number already exists for this user
-    const existingQuestion = await MCQ.findOne({
-      questionNo: questionNumber,
-      createdBy: req.session.userId
-    });
-
-    if (existingQuestion) {
-      return res.status(400).json({ 
-        error: `Question number ${questionNumber} already exists. Please use a different number.` 
-      });
-    }
 
     // Validate PYQ fields if needed
     if (pyqType === 'JEE MAIN PYQ') {
-      if (!session || !year) {
+      if (!shift || !year) {
         return res.status(400).json({ 
-          error: 'Session and Year are required for JEE MAIN PYQ questions' 
+          error: 'Shift and Year are required for JEE MAIN PYQ questions' 
         });
       }
 
       const yearNum = parseInt(year);
-      if (yearNum < 2013 || yearNum > new Date().getFullYear()) {
+      if (yearNum < 2021 || yearNum > 2025) {
         return res.status(400).json({ 
-          error: 'Invalid year. Year must be between 2013 and current year.' 
+          error: 'Invalid year. Year must be between 2021 and 2025.' 
         });
       }
     }
@@ -203,21 +170,24 @@ app.post('/submit', requireAuth, async (req, res) => {
 
     // Create MCQ object with conditional fields
     const mcqData = {
-      questionNo: questionNumber,
+      questionNo: questionNo,
       question,
       options,
       correctOption: correctOptionIndex,
       subject,
       topic,
       difficulty,
-      pyqType: pyqType || 'None',
+      pyqType: pyqType || 'Not PYQ',
       createdBy: req.session.userId
     };
 
     // Add PYQ specific fields if applicable
     if (pyqType === 'JEE MAIN PYQ') {
-      mcqData.session = session;
+      mcqData.shift = shift;
       mcqData.year = parseInt(year);
+      if (examDate) {
+        mcqData.examDate = new Date(examDate);
+      }
     }
 
     const mcq = new MCQ(mcqData);
@@ -229,14 +199,6 @@ app.post('/submit', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('Error saving question:', err);
-    
-    // Handle duplicate key error
-    if (err.code === 11000) {
-      return res.status(400).json({ 
-        error: `Question number ${req.body.questionNo} already exists. Please use a different number.` 
-      });
-    }
-    
     res.status(500).json({ error: "Error saving question. Please try again." });
   }
 });
@@ -244,7 +206,7 @@ app.post('/submit', requireAuth, async (req, res) => {
 // Get questions based on user role with enhanced filtering and sorting
 app.get('/questions', requireAuth, async (req, res) => {
   try {
-    const { subject, pyqType, year, session, sortBy = 'questionNo', sortOrder = 'asc' } = req.query;
+    const { subject, pyqType, year, shift, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     
     let filter = {};
     let questions;
@@ -255,14 +217,14 @@ app.get('/questions', requireAuth, async (req, res) => {
       if (subject) filter.subject = subject;
       if (pyqType && pyqType !== 'all') filter.pyqType = pyqType;
       if (year) filter.year = parseInt(year);
-      if (session) filter.session = session;
+      if (shift) filter.shift = shift;
     } else {
       // Regular users can only see their own questions
       filter.createdBy = req.session.userId;
       if (subject) filter.subject = subject;
       if (pyqType && pyqType !== 'all') filter.pyqType = pyqType;
       if (year) filter.year = parseInt(year);
-      if (session) filter.session = session;
+      if (shift) filter.shift = shift;
     }
 
     // Create sort object
@@ -411,21 +373,6 @@ app.put('/questions/:id', requireAuth, async (req, res) => {
       filter.createdBy = req.session.userId;
     }
     
-    // If updating question number, check for duplicates
-    if (updateData.questionNo) {
-      const existingQuestion = await MCQ.findOne({
-        questionNo: parseInt(updateData.questionNo),
-        createdBy: req.session.userId,
-        _id: { $ne: id }
-      });
-      
-      if (existingQuestion) {
-        return res.status(400).json({ 
-          error: `Question number ${updateData.questionNo} already exists` 
-        });
-      }
-    }
-    
     const updatedQuestion = await MCQ.findOneAndUpdate(
       filter, 
       updateData, 
@@ -442,13 +389,6 @@ app.put('/questions/:id', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('Error updating question:', err);
-    
-    if (err.code === 11000) {
-      return res.status(400).json({ 
-        error: 'Question number already exists' 
-      });
-    }
-    
     res.status(500).json({ error: 'Error updating question' });
   }
 });
@@ -484,9 +424,9 @@ app.get('/available-years', requireAuth, async (req, res) => {
 app.listen(3000, () => {
   console.log('Server started on http://localhost:3000');
   console.log('Features added:');
-  console.log('✅ Question numbering system');
+  console.log('✅ Question numbering system (no uniqueness constraint)');
   console.log('✅ PYQ type classification');
-  console.log('✅ JEE MAIN PYQ with session and year');
+  console.log('✅ JEE MAIN PYQ with shift and year');
   console.log('✅ Enhanced filtering and sorting');
   console.log('✅ Question statistics');
   console.log('✅ CRUD operations for questions');
