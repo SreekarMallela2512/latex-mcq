@@ -5,6 +5,7 @@ const mcqSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true
+    // Removed unique constraint
   },
   question: String,
   options: [String],
@@ -14,18 +15,21 @@ const mcqSchema = new mongoose.Schema({
   difficulty: String,
   pyqType: {
     type: String,
-    enum: ['JEE MAIN PYQ', 'JEE ADVANCED PYQ', 'NEET PYQ', 'Other', 'Not PYQ'],
+    enum: ['JEE MAIN PYQ', 'Not PYQ'],
     default: 'Not PYQ'
   },
-  session: {
+  shift: {
     type: String,
-    enum: ['Session 1', 'Session 2', 'N/A'],
+    enum: ['Shift 1', 'Shift 2', 'N/A'],
     default: 'N/A'
   },
   year: {
     type: Number,
-    min: 2000,
-    max: new Date().getFullYear()
+    min: 2021,
+    max: 2025
+  },
+  examDate: {
+    type: Date
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

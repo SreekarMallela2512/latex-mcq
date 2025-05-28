@@ -77,31 +77,39 @@
         <select name="pyqType" id="pyqType" onchange="togglePyqFields()" required>
           <option value="Not PYQ">Not PYQ</option>
           <option value="JEE MAIN PYQ">JEE MAIN PYQ</option>
-          <option value="JEE ADVANCED PYQ">JEE ADVANCED PYQ</option>
-          <option value="NEET PYQ">NEET PYQ</option>
-          <option value="Other">Other</option>
         </select>
 
         <div id="pyqDetails" style="display: none;">
-          <!-- Session selection (only for JEE MAIN) -->
-          <div id="sessionSection" style="display: none;">
-            <label>Session:</label>
+          <!-- Shift selection -->
+          <div id="shiftSection">
+            <label>Shift:</label>
             <div class="radio-group">
               <label class="radio-label">
-                <input type="radio" name="session" value="Session 1" />
-                Session 1
+                <input type="radio" name="shift" value="Shift 1" />
+                Shift 1
               </label>
               <label class="radio-label">
-                <input type="radio" name="session" value="Session 2" />
-                Session 2
+                <input type="radio" name="shift" value="Shift 2" />
+                Shift 2
               </label>
             </div>
           </div>
 
           <!-- Year selection -->
           <label for="year">Year:</label>
-          <select name="year" id="year">
+          <select name="year" id="year" onchange="populateExamDates()">
             <option value="">-- Select Year --</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+            <option value="2023">2023</option>
+            <option value="2022">2022</option>
+            <option value="2021">2021</option>
+          </select>
+
+          <!-- Exam Date selection -->
+          <label for="examDate">Exam Date:</label>
+          <select name="examDate" id="examDate">
+            <option value="">-- Select Exam Date --</option>
           </select>
         </div>
       </div>
@@ -120,6 +128,75 @@
   <script>
     let currentUser = null;
 
+    // Exam dates for different years (sample data - you can modify these)
+    const examDates = {
+      2025: [
+        { date: '2025-01-22', label: 'January 22, 2025' },
+        { date: '2025-01-24', label: 'January 24, 2025' },
+        { date: '2025-01-29', label: 'January 29, 2025' },
+        { date: '2025-01-31', label: 'January 31, 2025' },
+        { date: '2025-04-01', label: 'April 1, 2025' },
+        { date: '2025-04-04', label: 'April 4, 2025' },
+        { date: '2025-04-08', label: 'April 8, 2025' },
+        { date: '2025-04-12', label: 'April 12, 2025' }
+      ],
+      2024: [
+        { date: '2024-01-24', label: 'January 24, 2024' },
+        { date: '2024-01-27', label: 'January 27, 2024' },
+        { date: '2024-01-29', label: 'January 29, 2024' },
+        { date: '2024-01-31', label: 'January 31, 2024' },
+        { date: '2024-02-01', label: 'February 1, 2024' },
+        { date: '2024-04-04', label: 'April 4, 2024' },
+        { date: '2024-04-06', label: 'April 6, 2024' },
+        { date: '2024-04-08', label: 'April 8, 2024' },
+        { date: '2024-04-09', label: 'April 9, 2024' },
+        { date: '2024-04-15', label: 'April 15, 2024' }
+      ],
+      2023: [
+        { date: '2023-01-24', label: 'January 24, 2023' },
+        { date: '2023-01-25', label: 'January 25, 2023' },
+        { date: '2023-01-29', label: 'January 29, 2023' },
+        { date: '2023-01-30', label: 'January 30, 2023' },
+        { date: '2023-01-31', label: 'January 31, 2023' },
+        { date: '2023-02-01', label: 'February 1, 2023' },
+        { date: '2023-04-06', label: 'April 6, 2023' },
+        { date: '2023-04-08', label: 'April 8, 2023' },
+        { date: '2023-04-10', label: 'April 10, 2023' },
+        { date: '2023-04-11', label: 'April 11, 2023' },
+        { date: '2023-04-13', label: 'April 13, 2023' },
+        { date: '2023-04-15', label: 'April 15, 2023' }
+      ],
+      2022: [
+        { date: '2022-06-23', label: 'June 23, 2022' },
+        { date: '2022-06-24', label: 'June 24, 2022' },
+        { date: '2022-06-25', label: 'June 25, 2022' },
+        { date: '2022-06-26', label: 'June 26, 2022' },
+        { date: '2022-06-27', label: 'June 27, 2022' },
+        { date: '2022-06-28', label: 'June 28, 2022' },
+        { date: '2022-06-29', label: 'June 29, 2022' },
+        { date: '2022-07-21', label: 'July 21, 2022' },
+        { date: '2022-07-25', label: 'July 25, 2022' },
+        { date: '2022-07-28', label: 'July 28, 2022' },
+        { date: '2022-07-30', label: 'July 30, 2022' }
+      ],
+      2021: [
+        { date: '2021-02-23', label: 'February 23, 2021' },
+        { date: '2021-02-24', label: 'February 24, 2021' },
+        { date: '2021-02-25', label: 'February 25, 2021' },
+        { date: '2021-02-26', label: 'February 26, 2021' },
+        { date: '2021-03-16', label: 'March 16, 2021' },
+        { date: '2021-03-17', label: 'March 17, 2021' },
+        { date: '2021-03-18', label: 'March 18, 2021' },
+        { date: '2021-07-20', label: 'July 20, 2021' },
+        { date: '2021-07-22', label: 'July 22, 2021' },
+        { date: '2021-07-25', label: 'July 25, 2021' },
+        { date: '2021-07-27', label: 'July 27, 2021' },
+        { date: '2021-08-26', label: 'August 26, 2021' },
+        { date: '2021-08-31', label: 'August 31, 2021' },
+        { date: '2021-09-02', label: 'September 2, 2021' }
+      ]
+    };
+
     // Check authentication on page load
     window.onload = async () => {
       try {
@@ -133,7 +210,6 @@
         
         currentUser = data.user;
         updateUserInterface();
-        populateYearDropdown();
       } catch (error) {
         window.location.href = '/login.html';
       }
@@ -150,16 +226,24 @@
       questionsTitle.textContent = currentUser.role === 'superuser' ? 'All Questions' : 'Your Questions';
     }
 
-    // Populate year dropdown
-    function populateYearDropdown() {
-      const yearSelect = document.getElementById('year');
-      const currentYear = new Date().getFullYear();
+    // Populate exam dates based on selected year
+    function populateExamDates() {
+      const year = document.getElementById('year').value;
+      const examDateSelect = document.getElementById('examDate');
       
-      for (let year = currentYear; year >= 2000; year--) {
-        const option = document.createElement('option');
-        option.value = year;
-        option.textContent = year;
-        yearSelect.appendChild(option);
+      // Clear existing options
+      examDateSelect.innerHTML = '<option value="">-- Select Exam Date --</option>';
+      
+      if (year && examDates[year]) {
+        examDates[year].forEach(dateObj => {
+          const option = document.createElement('option');
+          option.value = dateObj.date;
+          option.textContent = dateObj.label;
+          examDateSelect.appendChild(option);
+        });
+        examDateSelect.required = true;
+      } else {
+        examDateSelect.required = false;
       }
     }
 
@@ -167,34 +251,24 @@
     function togglePyqFields() {
       const pyqType = document.getElementById('pyqType').value;
       const pyqDetails = document.getElementById('pyqDetails');
-      const sessionSection = document.getElementById('sessionSection');
       const yearSelect = document.getElementById('year');
+      const examDateSelect = document.getElementById('examDate');
       
       if (pyqType === 'Not PYQ') {
         pyqDetails.style.display = 'none';
-        sessionSection.style.display = 'none';
         yearSelect.required = false;
+        examDateSelect.required = false;
         // Clear radio buttons
-        document.querySelectorAll('input[name="session"]').forEach(radio => {
+        document.querySelectorAll('input[name="shift"]').forEach(radio => {
           radio.checked = false;
           radio.required = false;
         });
       } else {
         pyqDetails.style.display = 'block';
         yearSelect.required = true;
-        
-        if (pyqType === 'JEE MAIN PYQ') {
-          sessionSection.style.display = 'block';
-          document.querySelectorAll('input[name="session"]').forEach(radio => {
-            radio.required = true;
-          });
-        } else {
-          sessionSection.style.display = 'none';
-          document.querySelectorAll('input[name="session"]').forEach(radio => {
-            radio.checked = false;
-            radio.required = false;
-          });
-        }
+        document.querySelectorAll('input[name="shift"]').forEach(radio => {
+          radio.required = true;
+        });
       }
     }
 
@@ -275,7 +349,8 @@
       }
       // Hide PYQ details
       document.getElementById('pyqDetails').style.display = 'none';
-      document.getElementById('sessionSection').style.display = 'none';
+      // Clear exam date options
+      document.getElementById('examDate').innerHTML = '<option value="">-- Select Exam Date --</option>';
     }
 
     const physicsTopics = ["Physical World and Measurement", "Kinematics", "Laws of Motion", "Work, Energy and Power", "Rotational Motion", "Gravitation", "Properties of Solids and Liquids", "Thermodynamics", "Kinetic Theory of Gases", "Oscillations and Waves", "Electrostatics", "Current Electricity", "Magnetic Effects of Current and Magnetism", "Electromagnetic Induction and Alternating Currents", "Electromagnetic Waves", "Optics", "Dual Nature of Matter and Radiation", "Atoms and Nuclei", "Electronic Devices", "Communication Systems"];
@@ -327,8 +402,9 @@
         topic: formData.get('topic'),
         difficulty: formData.get('difficulty'),
         pyqType: formData.get('pyqType'),
-        session: formData.get('session') || 'N/A',
-        year: formData.get('year') ? parseInt(formData.get('year')) : null
+        shift: formData.get('shift') || 'N/A',
+        year: formData.get('year') ? parseInt(formData.get('year')) : null,
+        examDate: formData.get('examDate') || null
       };
 
       try {
@@ -381,8 +457,9 @@
           if (q.pyqType && q.pyqType !== 'Not PYQ') {
             pyqInfo = `<div class="pyq-info">
               <strong>PYQ:</strong> ${q.pyqType}
-              ${q.session && q.session !== 'N/A' ? ` - ${q.session}` : ''}
+              ${q.shift && q.shift !== 'N/A' ? ` - ${q.shift}` : ''}
               ${q.year ? ` (${q.year})` : ''}
+              ${q.examDate ? ` - ${new Date(q.examDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}` : ''}
             </div>`;
           }
           
