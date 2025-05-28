@@ -27,10 +27,6 @@ const mcqSchema = new mongoose.Schema({
     min: 2000,
     max: new Date().getFullYear()
   },
-  examDate: {
-    type: String, // Format: "DD-MM-YYYY" or "Month YYYY" for flexibility
-    trim: true
-  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
