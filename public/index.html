@@ -17,7 +17,52 @@
       </div>
       <button id="logoutBtn" class="logout-btn">Logout</button>
     </div>
+<!-- Add this section in index.html after the user-info-bar div and before the h1 tag -->
 
+<!-- Admin Management Section (Only visible to superusers) -->
+<div id="adminSection" class="admin-section" style="display: none;">
+  <h2>🔧 Admin Management</h2>
+  
+  <!-- Year Management -->
+  <div class="admin-card">
+    <h3>📅 Year Management</h3>
+    <div class="admin-controls">
+      <div class="input-group">
+        <input type="number" id="newYear" placeholder="Add new year (e.g., 2026)" min="2020" max="2030" />
+        <button onclick="addYear()" class="admin-btn add-btn">➕ Add Year</button>
+      </div>
+      <div class="year-list">
+        <h4>Current Years:</h4>
+        <div id="yearsList"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Exam Date Management -->
+  <div class="admin-card">
+    <h3>📝 Exam Date Management</h3>
+    <div class="admin-controls">
+      <div class="input-group">
+        <select id="dateManagementYear" onchange="loadExamDatesForYear()">
+          <option value="">Select Year</option>
+        </select>
+        <input type="date" id="newExamDate" />
+        <button onclick="addExamDate()" class="admin-btn add-btn">➕ Add Date</button>
+      </div>
+      <div class="exam-dates-list">
+        <h4>Exam Dates for Selected Year:</h4>
+        <div id="examDatesList"></div>
+      </div>
+    </div>
+  </div>
+  
+  <button onclick="toggleAdminSection()" class="admin-toggle-btn">Hide Admin Panel</button>
+</div>
+
+<!-- Admin Toggle Button (Only visible to superusers) -->
+<button id="adminToggleBtn" onclick="toggleAdminSection()" class="admin-toggle-btn" style="display: none;">
+  Show Admin Panel
+</button>
     <h1>Submit MCQ (LaTeX Supported)</h1>
 
     <form id="mcqForm" method="POST">

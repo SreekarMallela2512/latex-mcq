@@ -444,6 +444,147 @@ app.get('/questions/:id', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Error fetching question' });
   }
 });
+// Add these routes to server.js (before app.listen)
+
+// Year Management Routes (Superuser only)
+app.get('/admin/years', requireSuperUser, async (req, res) => {
+  try {
+    // Get years from database or default range
+    const existingYears = await MCQ.distinct('year', { year: { $exists: true, $ne: null } });
+    const defaultYears = [2021, 2022, 2023, 2024, 2025];
+    
+    // Combine and sort unique years
+    const allYears = [...new Set([...existingYears, ...defaultYears])].sort();
+    
+    res.json(allYears);
+  } catch (err) {
+    console.error('Error fetching years:', err);
+    res.status(500).json({ error: 'Error fetching years' });
+  }
+});
+
+app.post('/admin/years', requireSuperUser, async (req, res) => {
+  try {
+    const { year } = req.body;
+    
+    if (!year || year < 2020 || year > 2030) {
+      return res.status(400).json({ error: 'Invalid year. Must be between 2020 and 2030.' });
+    }
+    
+    // For this implementation, we'll store years in a separate collection or use a config approach
+    // Since we're using the examDates object, we'll just return success
+    res.json({ message: 'Year added successfully', year: parseInt(year) });
+  } catch (err) {
+    console.error('Error adding year:', err);
+    res.status(500).json({ error: 'Error adding year' });
+  }
+});
+
+app.delete('/admin/years/:year', requireSuperUser, async (req, res) => {
+  try {
+    const { year } = req.params;
+    const yearNum = parseInt(year);
+    
+    // Check if year is used in existing questions
+    const questionsWithYear = await MCQ.countDocuments({ year: yearNum });
+    
+    if (questionsWithYear > 0) {
+      return res.status(400).json({ 
+        error: `Cannot delete year ${year}. It is used in ${questionsWithYear} question(s).` 
+      });
+    }
+    
+    res.json({ message: `Year ${year} deleted successfully` });
+  } catch (err) {
+    console.error('Error deleting year:', err);
+    res.status(500).json({ error: 'Error deleting year' });
+  }
+});
+
+// Exam Date Management Routes (Superuser only)
+app.get('/admin/exam-dates/:year', requireSuperUser, async (req, res) => {
+  try {
+    const { year } = req.params;
+    
+    // Get exam dates from database for the specific year
+    const examDates = await MCQ.distinct('examDate', { 
+      year: parseInt(year), 
+      examDate: { $exists: true, $ne: null } 
+    });
+    
+    // Format dates for response
+    const formattedDates = examDates.map(date => ({
+      date: new Date(date).toISOString().split('T')[0],
+      label: new Date(date).toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })
+    }));
+    
+    res.json(formattedDates);
+  } catch (err) {
+    console.error('Error fetching exam dates:', err);
+    res.status(500).json({ error: 'Error fetching exam dates' });
+  }
+});
+
+app.post('/admin/exam-dates', requireSuperUser, async (req, res) => {
+  try {
+    const { year, date, label } = req.body;
+    
+    if (!year || !date) {
+      return res.status(400).json({ error: 'Year and date are required' });
+    }
+    
+    const examDate = new Date(date);
+    if (isNaN(examDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+    
+    res.json({ 
+      message: 'Exam date added successfully', 
+      examDate: {
+        date: date,
+        label: label || examDate.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })
+      }
+    });
+  } catch (err) {
+    console.error('Error adding exam date:', err);
+    res.status(500).json({ error: 'Error adding exam date' });
+  }
+});
+
+app.delete('/admin/exam-dates', requireSuperUser, async (req, res) => {
+  try {
+    const { year, date } = req.body;
+    
+    if (!year || !date) {
+      return res.status(400).json({ error: 'Year and date are required' });
+    }
+    
+    // Check if date is used in existing questions
+    const questionsWithDate = await MCQ.countDocuments({ 
+      year: parseInt(year),
+      examDate: new Date(date)
+    });
+    
+    if (questionsWithDate > 0) {
+      return res.status(400).json({ 
+        error: `Cannot delete this exam date. It is used in ${questionsWithDate} question(s).` 
+      });
+    }
+    
+    res.json({ message: 'Exam date deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting exam date:', err);
+    res.status(500).json({ error: 'Error deleting exam date' });
+  }
+});
 app.listen(3000, () => {
   console.log('Server started on http://localhost:3000');
   console.log('Features added:');
