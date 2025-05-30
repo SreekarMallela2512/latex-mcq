@@ -336,3 +336,52 @@ button + button {
     padding: 20px 15px;
   }
 }
+/* Action buttons for edit/delete */
+.action-buttons {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.edit-btn, .delete-btn {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.edit-btn {
+  background: linear-gradient(135deg, #74b9ff, #0984e3);
+  color: white;
+}
+
+.edit-btn:hover {
+  background: linear-gradient(135deg, #0984e3, #74b9ff);
+  transform: translateY(-1px);
+}
+
+.delete-btn {
+  background: linear-gradient(135deg, #fd79a8, #e84393);
+  color: white;
+}
+
+.delete-btn:hover {
+  background: linear-gradient(135deg, #e84393, #fd79a8);
+  transform: translateY(-1px);
+}
+
+/* Cancel edit button styling */
+#cancelEditBtn {
+  background: linear-gradient(135deg, #ffecd2, #fcb69f);
+  color: #d63031;
+  border: 2px solid #fd79a8;
+}
+
+#cancelEditBtn:hover {
+  background: linear-gradient(135deg, #fcb69f, #ffecd2);
+  transform: translateY(-1px);
+}

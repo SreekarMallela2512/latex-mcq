@@ -420,7 +420,30 @@ app.get('/available-years', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Error fetching available years' });
   }
 });
-
+// Get single question by ID (for editing)
+app.get('/questions/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    let filter = { _id: id };
+    
+    // Regular users can only access their own questions
+    if (req.session.userRole !== 'superuser') {
+      filter.createdBy = req.session.userId;
+    }
+    
+    const question = await MCQ.findOne(filter);
+    
+    if (!question) {
+      return res.status(404).json({ error: 'Question not found or access denied' });
+    }
+    
+    res.json(question);
+  } catch (err) {
+    console.error('Error fetching question:', err);
+    res.status(500).json({ error: 'Error fetching question' });
+  }
+});
 app.listen(3000, () => {
   console.log('Server started on http://localhost:3000');
   console.log('Features added:');
