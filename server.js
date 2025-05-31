@@ -204,6 +204,7 @@ app.post('/submit', requireAuth, async (req, res) => {
 });
 
 // Get questions based on user role with enhanced filtering and sorting
+// Get questions based on user role with enhanced filtering and sorting
 app.get('/questions', requireAuth, async (req, res) => {
   try {
     const { subject, pyqType, year, shift, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
@@ -227,17 +228,26 @@ app.get('/questions', requireAuth, async (req, res) => {
       if (shift) filter.shift = shift;
     }
 
-    // Create sort object
+    // Create sort object - default to newest first
     const sort = {};
     sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
     if (req.session.userRole === 'superuser') {
       questions = await MCQ.find(filter)
         .populate('createdBy', 'username')
-        .sort(sort);
+        .sort(sort)
+        .lean(); // Use lean() for better performance
     } else {
-      questions = await MCQ.find(filter).sort(sort);
+      questions = await MCQ.find(filter)
+        .sort(sort)
+        .lean();
     }
+    
+    // Ensure createdAt is included in response
+    questions = questions.map(q => ({
+      ...q,
+      createdAt: q.createdAt || q._id.getTimestamp() // Fallback to ObjectId timestamp if createdAt is missing
+    }));
     
     res.json(questions);
   } catch (err) {
@@ -447,14 +457,22 @@ app.get('/questions/:id', requireAuth, async (req, res) => {
 // Add these routes to server.js (before app.listen)
 
 // Year Management Routes (Superuser only)
+// Add this to your server.js file - replace the existing year management routes
+
+// Year Management Routes (Superuser only)
+// Add this to your server.js file - replace the existing year management routes
+
+// Year Management Routes (Superuser only)
 app.get('/admin/years', requireSuperUser, async (req, res) => {
   try {
-    // Get years from database or default range
+    // Get years from database
     const existingYears = await MCQ.distinct('year', { year: { $exists: true, $ne: null } });
+    
+    // Default years that should always be available
     const defaultYears = [2021, 2022, 2023, 2024, 2025];
     
     // Combine and sort unique years
-    const allYears = [...new Set([...existingYears, ...defaultYears])].sort();
+    const allYears = [...new Set([...existingYears, ...defaultYears])].sort((a, b) => b - a);
     
     res.json(allYears);
   } catch (err) {
@@ -471,8 +489,15 @@ app.post('/admin/years', requireSuperUser, async (req, res) => {
       return res.status(400).json({ error: 'Invalid year. Must be between 2020 and 2030.' });
     }
     
-    // For this implementation, we'll store years in a separate collection or use a config approach
-    // Since we're using the examDates object, we'll just return success
+    // Check if year already exists in database
+    const existingYear = await MCQ.findOne({ year: parseInt(year) });
+    
+    if (existingYear) {
+      return res.status(400).json({ error: 'Year already exists in the database.' });
+    }
+    
+    // Since we're not storing years separately, we'll just validate and return success
+    // The year will be available once questions are created with it
     res.json({ message: 'Year added successfully', year: parseInt(year) });
   } catch (err) {
     console.error('Error adding year:', err);
@@ -505,22 +530,32 @@ app.delete('/admin/years/:year', requireSuperUser, async (req, res) => {
 app.get('/admin/exam-dates/:year', requireSuperUser, async (req, res) => {
   try {
     const { year } = req.params;
+    const yearNum = parseInt(year);
     
     // Get exam dates from database for the specific year
     const examDates = await MCQ.distinct('examDate', { 
-      year: parseInt(year), 
+      year: yearNum, 
       examDate: { $exists: true, $ne: null } 
     });
     
+    // Get hardcoded exam dates for the year (from your existing examDates object)
+    const hardcodedDates = getHardcodedExamDates(yearNum);
+    
+    // Combine and deduplicate dates
+    const allDates = [...new Set([...examDates, ...hardcodedDates.map(d => new Date(d.date))])];
+    
     // Format dates for response
-    const formattedDates = examDates.map(date => ({
-      date: new Date(date).toISOString().split('T')[0],
-      label: new Date(date).toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      })
-    }));
+    const formattedDates = allDates.map(date => {
+      const dateObj = new Date(date);
+      return {
+        date: dateObj.toISOString().split('T')[0],
+        label: dateObj.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })
+      };
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
     
     res.json(formattedDates);
   } catch (err) {
@@ -531,7 +566,7 @@ app.get('/admin/exam-dates/:year', requireSuperUser, async (req, res) => {
 
 app.post('/admin/exam-dates', requireSuperUser, async (req, res) => {
   try {
-    const { year, date, label } = req.body;
+    const { year, date } = req.body;
     
     if (!year || !date) {
       return res.status(400).json({ error: 'Year and date are required' });
@@ -542,11 +577,21 @@ app.post('/admin/exam-dates', requireSuperUser, async (req, res) => {
       return res.status(400).json({ error: 'Invalid date format' });
     }
     
+    // Check if this date already exists for this year
+    const existingDate = await MCQ.findOne({ 
+      year: parseInt(year), 
+      examDate: examDate 
+    });
+    
+    if (existingDate) {
+      return res.status(400).json({ error: 'This exam date already exists for the selected year' });
+    }
+    
     res.json({ 
       message: 'Exam date added successfully', 
       examDate: {
         date: date,
-        label: label || examDate.toLocaleDateString('en-US', { 
+        label: examDate.toLocaleDateString('en-US', { 
           year: 'numeric', 
           month: 'long', 
           day: 'numeric' 
@@ -567,10 +612,12 @@ app.delete('/admin/exam-dates', requireSuperUser, async (req, res) => {
       return res.status(400).json({ error: 'Year and date are required' });
     }
     
+    const examDate = new Date(date);
+    
     // Check if date is used in existing questions
     const questionsWithDate = await MCQ.countDocuments({ 
       year: parseInt(year),
-      examDate: new Date(date)
+      examDate: examDate
     });
     
     if (questionsWithDate > 0) {
@@ -585,6 +632,79 @@ app.delete('/admin/exam-dates', requireSuperUser, async (req, res) => {
     res.status(500).json({ error: 'Error deleting exam date' });
   }
 });
+
+// Helper function to get hardcoded exam dates (move your existing examDates object here)
+function getHardcodedExamDates(year) {
+  const examDates = {
+    2025: [
+      { date: '2025-01-22', label: 'January 22, 2025' },
+      { date: '2025-01-24', label: 'January 24, 2025' },
+      { date: '2025-01-29', label: 'January 29, 2025' },
+      { date: '2025-01-31', label: 'January 31, 2025' },
+      { date: '2025-04-01', label: 'April 1, 2025' },
+      { date: '2025-04-04', label: 'April 4, 2025' },
+      { date: '2025-04-08', label: 'April 8, 2025' },
+      { date: '2025-04-12', label: 'April 12, 2025' }
+    ],
+    2024: [
+      { date: '2024-01-24', label: 'January 24, 2024' },
+      { date: '2024-01-27', label: 'January 27, 2024' },
+      { date: '2024-01-29', label: 'January 29, 2024' },
+      { date: '2024-01-31', label: 'January 31, 2024' },
+      { date: '2024-02-01', label: 'February 1, 2024' },
+      { date: '2024-04-04', label: 'April 4, 2024' },
+      { date: '2024-04-06', label: 'April 6, 2024' },
+      { date: '2024-04-08', label: 'April 8, 2024' },
+      { date: '2024-04-09', label: 'April 9, 2024' },
+      { date: '2024-04-15', label: 'April 15, 2024' }
+    ],
+    2023: [
+      { date: '2023-01-24', label: 'January 24, 2023' },
+      { date: '2023-01-25', label: 'January 25, 2023' },
+      { date: '2023-01-29', label: 'January 29, 2023' },
+      { date: '2023-01-30', label: 'January 30, 2023' },
+      { date: '2023-01-31', label: 'January 31, 2023' },
+      { date: '2023-02-01', label: 'February 1, 2023' },
+      { date: '2023-04-06', label: 'April 6, 2023' },
+      { date: '2023-04-08', label: 'April 8, 2023' },
+      { date: '2023-04-10', label: 'April 10, 2023' },
+      { date: '2023-04-11', label: 'April 11, 2023' },
+      { date: '2023-04-13', label: 'April 13, 2023' },
+      { date: '2023-04-15', label: 'April 15, 2023' }
+    ],
+    2022: [
+      { date: '2022-06-23', label: 'June 23, 2022' },
+      { date: '2022-06-24', label: 'June 24, 2022' },
+      { date: '2022-06-25', label: 'June 25, 2022' },
+      { date: '2022-06-26', label: 'June 26, 2022' },
+      { date: '2022-06-27', label: 'June 27, 2022' },
+      { date: '2022-06-28', label: 'June 28, 2022' },
+      { date: '2022-06-29', label: 'June 29, 2022' },
+      { date: '2022-07-21', label: 'July 21, 2022' },
+      { date: '2022-07-25', label: 'July 25, 2022' },
+      { date: '2022-07-28', label: 'July 28, 2022' },
+      { date: '2022-07-30', label: 'July 30, 2022' }
+    ],
+    2021: [
+      { date: '2021-02-23', label: 'February 23, 2021' },
+      { date: '2021-02-24', label: 'February 24, 2021' },
+      { date: '2021-02-25', label: 'February 25, 2021' },
+      { date: '2021-02-26', label: 'February 26, 2021' },
+      { date: '2021-03-16', label: 'March 16, 2021' },
+      { date: '2021-03-17', label: 'March 17, 2021' },
+      { date: '2021-03-18', label: 'March 18, 2021' },
+      { date: '2021-07-20', label: 'July 20, 2021' },
+      { date: '2021-07-22', label: 'July 22, 2021' },
+      { date: '2021-07-25', label: 'July 25, 2021' },
+      { date: '2021-07-27', label: 'July 27, 2021' },
+      { date: '2021-08-26', label: 'August 26, 2021' },
+      { date: '2021-08-31', label: 'August 31, 2021' },
+      { date: '2021-09-02', label: 'September 2, 2021' }
+    ]
+  };
+  
+  return examDates[year] || [];
+}
 app.listen(3000, () => {
   console.log('Server started on http://localhost:3000');
   console.log('Features added:');

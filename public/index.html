@@ -612,7 +612,9 @@ form.addEventListener('submit', async function(event) {
     alert('Error: ' + error.message);
   }
 });
-    async function loadQuestions() {
+    // Update the loadQuestions function in index.html to show creation date/time
+
+async function loadQuestions() {
   try {
     const response = await fetch('/questions');
     
@@ -636,7 +638,24 @@ form.addEventListener('submit', async function(event) {
       
       let creatorInfo = '';
       if (currentUser.role === 'superuser' && q.createdBy) {
-        creatorInfo = `<div class="creator-info">Created by: <strong>${q.createdBy.username || 'Unknown'}</strong></div>`;
+        // Format the creation date and time
+        const createdDate = new Date(q.createdAt);
+        const formattedDateTime = createdDate.toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+
+        creatorInfo = `
+          <div class="creator-info">
+            <div><strong>Created by:</strong> ${q.createdBy.username || 'Unknown'}</div>
+            <div><strong>Created on:</strong> ${formattedDateTime}</div>
+          </div>
+        `;
       }
 
       let pyqInfo = '';
@@ -684,6 +703,273 @@ form.addEventListener('submit', async function(event) {
   } catch (error) {
     console.error('Error loading questions:', error);
     alert('Error loading questions. Please try again.');
+  }
+}
+// Add these functions to your index.html script section
+
+// Function to load years from backend
+async function loadYears() {
+  try {
+    const response = await fetch('/admin/years');
+    if (response.ok) {
+      const years = await response.json();
+      updateYearDropdowns(years);
+      displayCurrentYears(years);
+    }
+  } catch (error) {
+    console.error('Error loading years:', error);
+  }
+}
+
+// Function to update year dropdowns
+function updateYearDropdowns(years) {
+  const yearSelect = document.getElementById('year');
+  const dateManagementYear = document.getElementById('dateManagementYear');
+  
+  // Clear existing options
+  yearSelect.innerHTML = '<option value="">-- Select Year --</option>';
+  dateManagementYear.innerHTML = '<option value="">Select Year</option>';
+  
+  // Add years to dropdowns
+  years.forEach(year => {
+    const option1 = document.createElement('option');
+    option1.value = year;
+    option1.textContent = year;
+    yearSelect.appendChild(option1);
+    
+    const option2 = document.createElement('option');
+    option2.value = year;
+    option2.textContent = year;
+    dateManagementYear.appendChild(option2);
+  });
+}
+
+// Function to display current years in admin panel
+function displayCurrentYears(years) {
+  const yearsList = document.getElementById('yearsList');
+  yearsList.innerHTML = '';
+  
+  years.forEach(year => {
+    const yearItem = document.createElement('div');
+    yearItem.className = 'year-item';
+    yearItem.innerHTML = `
+      <span>${year}</span>
+      <button onclick="removeYear(${year})" class="admin-btn delete-btn">❌ Remove</button>
+    `;
+    yearsList.appendChild(yearItem);
+  });
+}
+
+// Function to add a new year
+async function addYear() {
+  const newYearInput = document.getElementById('newYear');
+  const year = parseInt(newYearInput.value);
+  
+  if (!year || year < 2020 || year > 2030) {
+    alert('Please enter a valid year between 2020 and 2030');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/admin/years', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year })
+    });
+    
+    if (response.ok) {
+      alert('Year added successfully!');
+      newYearInput.value = '';
+      loadYears(); // Reload years
+    } else {
+      const error = await response.json();
+      alert('Error: ' + error.error);
+    }
+  } catch (error) {
+    console.error('Error adding year:', error);
+    alert('Error adding year');
+  }
+}
+
+// Function to remove a year
+async function removeYear(year) {
+  if (!confirm(`Are you sure you want to remove year ${year}?`)) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`/admin/years/${year}`, {
+      method: 'DELETE'
+    });
+    
+    if (response.ok) {
+      alert('Year removed successfully!');
+      loadYears(); // Reload years
+    } else {
+      const error = await response.json();
+      alert('Error: ' + error.error);
+    }
+  } catch (error) {
+    console.error('Error removing year:', error);
+    alert('Error removing year');
+  }
+}
+
+// Function to load exam dates for selected year
+async function loadExamDatesForYear() {
+  const year = document.getElementById('dateManagementYear').value;
+  if (!year) {
+    document.getElementById('examDatesList').innerHTML = '';
+    return;
+  }
+  
+  try {
+    const response = await fetch(`/admin/exam-dates/${year}`);
+    if (response.ok) {
+      const examDates = await response.json();
+      displayExamDates(examDates, year);
+    }
+  } catch (error) {
+    console.error('Error loading exam dates:', error);
+  }
+}
+
+// Function to display exam dates
+function displayExamDates(examDates, year) {
+  const examDatesList = document.getElementById('examDatesList');
+  examDatesList.innerHTML = '';
+  
+  examDates.forEach(dateObj => {
+    const dateItem = document.createElement('div');
+    dateItem.className = 'exam-date-item';
+    dateItem.innerHTML = `
+      <span>${dateObj.label}</span>
+      <button onclick="removeExamDate('${year}', '${dateObj.date}')" class="admin-btn delete-btn">❌ Remove</button>
+    `;
+    examDatesList.appendChild(dateItem);
+  });
+}
+
+// Function to add exam date
+async function addExamDate() {
+  const year = document.getElementById('dateManagementYear').value;
+  const date = document.getElementById('newExamDate').value;
+  
+  if (!year || !date) {
+    alert('Please select a year and date');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/admin/exam-dates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year: parseInt(year), date })
+    });
+    
+    if (response.ok) {
+      alert('Exam date added successfully!');
+      document.getElementById('newExamDate').value = '';
+      loadExamDatesForYear(); // Reload exam dates
+      loadAvailableExamDates(); // Update the main form's exam dates
+    } else {
+      const error = await response.json();
+      alert('Error: ' + error.error);
+    }
+  } catch (error) {
+    console.error('Error adding exam date:', error);
+    alert('Error adding exam date');
+  }
+}
+
+// Function to remove exam date
+async function removeExamDate(year, date) {
+  if (!confirm('Are you sure you want to remove this exam date?')) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/admin/exam-dates', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year: parseInt(year), date })
+    });
+    
+    if (response.ok) {
+      alert('Exam date removed successfully!');
+      loadExamDatesForYear(); // Reload exam dates
+      loadAvailableExamDates(); // Update the main form's exam dates
+    } else {
+      const error = await response.json();
+      alert('Error: ' + error.error);
+    }
+  } catch (error) {
+    console.error('Error removing exam date:', error);
+    alert('Error removing exam date');
+  }
+}
+
+// Function to load available exam dates for the main form
+async function loadAvailableExamDates() {
+  const year = document.getElementById('year').value;
+  if (!year) return;
+  
+  try {
+    const response = await fetch(`/admin/exam-dates/${year}`);
+    if (response.ok) {
+      const examDates = await response.json();
+      const examDateSelect = document.getElementById('examDate');
+      
+      // Clear existing options
+      examDateSelect.innerHTML = '<option value="">-- Select Exam Date --</option>';
+      
+      // Add exam dates to dropdown
+      examDates.forEach(dateObj => {
+        const option = document.createElement('option');
+        option.value = dateObj.date;
+        option.textContent = dateObj.label;
+        examDateSelect.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error('Error loading exam dates:', error);
+  }
+}
+
+// Function to show/hide admin section
+function toggleAdminSection() {
+  const adminSection = document.getElementById('adminSection');
+  const toggleBtn = document.getElementById('adminToggleBtn');
+  
+  if (adminSection.style.display === 'none') {
+    adminSection.style.display = 'block';
+    toggleBtn.style.display = 'none';
+    loadYears(); // Load years when opening admin panel
+  } else {
+    adminSection.style.display = 'none';
+    toggleBtn.style.display = 'block';
+  }
+}
+
+// Update the existing populateExamDates function
+function populateExamDates() {
+  loadAvailableExamDates();
+}
+
+// Update the existing updateUserInterface function to include admin panel setup
+function updateUserInterface() {
+  document.getElementById('welcomeMessage').textContent = `Welcome, ${currentUser.username}!`;
+  
+  const roleElement = document.getElementById('userRole');
+  roleElement.textContent = currentUser.role === 'superuser' ? 'Super User' : 'User';
+  roleElement.className = `role-badge ${currentUser.role}`;
+  
+  const questionsTitle = document.getElementById('questionsTitle');
+  questionsTitle.textContent = currentUser.role === 'superuser' ? 'All Questions' : 'Your Questions';
+  
+  // Show admin features for superusers
+  if (currentUser.role === 'superuser') {
+    document.getElementById('adminToggleBtn').style.display = 'block';
   }
 }
   </script>
