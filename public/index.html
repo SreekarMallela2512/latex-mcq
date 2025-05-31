@@ -129,15 +129,10 @@
 
           <!-- Year selection -->
           <label for="year">Year:</label>
-          <select name="year" id="year" onchange="populateExamDates()">
-            <option value="">-- Select Year --</option>
-            <option value="2025">2025</option>
-            <option value="2024">2024</option>
-            <option value="2023">2023</option>
-            <option value="2022">2022</option>
-            <option value="2021">2021</option>
-          </select>
-
+        <!-- REPLACE WITH EMPTY DROPDOWN -->
+<select name="year" id="year" onchange="populateExamDates()">
+  <option value="">-- Select Year --</option>
+</select>
           <!-- Exam Date selection -->
           <label for="examDate">Exam Date:</label>
           <select name="examDate" id="examDate">
@@ -293,74 +288,7 @@ async function deleteQuestion(questionId) {
   }
 }
 
-    // Exam dates for different years (sample data - you can modify these)
-    const examDates = {
-      2025: [
-        { date: '2025-01-22', label: 'January 22, 2025' },
-        { date: '2025-01-24', label: 'January 24, 2025' },
-        { date: '2025-01-29', label: 'January 29, 2025' },
-        { date: '2025-01-31', label: 'January 31, 2025' },
-        { date: '2025-04-01', label: 'April 1, 2025' },
-        { date: '2025-04-04', label: 'April 4, 2025' },
-        { date: '2025-04-08', label: 'April 8, 2025' },
-        { date: '2025-04-12', label: 'April 12, 2025' }
-      ],
-      2024: [
-        { date: '2024-01-24', label: 'January 24, 2024' },
-        { date: '2024-01-27', label: 'January 27, 2024' },
-        { date: '2024-01-29', label: 'January 29, 2024' },
-        { date: '2024-01-31', label: 'January 31, 2024' },
-        { date: '2024-02-01', label: 'February 1, 2024' },
-        { date: '2024-04-04', label: 'April 4, 2024' },
-        { date: '2024-04-06', label: 'April 6, 2024' },
-        { date: '2024-04-08', label: 'April 8, 2024' },
-        { date: '2024-04-09', label: 'April 9, 2024' },
-        { date: '2024-04-15', label: 'April 15, 2024' }
-      ],
-      2023: [
-        { date: '2023-01-24', label: 'January 24, 2023' },
-        { date: '2023-01-25', label: 'January 25, 2023' },
-        { date: '2023-01-29', label: 'January 29, 2023' },
-        { date: '2023-01-30', label: 'January 30, 2023' },
-        { date: '2023-01-31', label: 'January 31, 2023' },
-        { date: '2023-02-01', label: 'February 1, 2023' },
-        { date: '2023-04-06', label: 'April 6, 2023' },
-        { date: '2023-04-08', label: 'April 8, 2023' },
-        { date: '2023-04-10', label: 'April 10, 2023' },
-        { date: '2023-04-11', label: 'April 11, 2023' },
-        { date: '2023-04-13', label: 'April 13, 2023' },
-        { date: '2023-04-15', label: 'April 15, 2023' }
-      ],
-      2022: [
-        { date: '2022-06-23', label: 'June 23, 2022' },
-        { date: '2022-06-24', label: 'June 24, 2022' },
-        { date: '2022-06-25', label: 'June 25, 2022' },
-        { date: '2022-06-26', label: 'June 26, 2022' },
-        { date: '2022-06-27', label: 'June 27, 2022' },
-        { date: '2022-06-28', label: 'June 28, 2022' },
-        { date: '2022-06-29', label: 'June 29, 2022' },
-        { date: '2022-07-21', label: 'July 21, 2022' },
-        { date: '2022-07-25', label: 'July 25, 2022' },
-        { date: '2022-07-28', label: 'July 28, 2022' },
-        { date: '2022-07-30', label: 'July 30, 2022' }
-      ],
-      2021: [
-        { date: '2021-02-23', label: 'February 23, 2021' },
-        { date: '2021-02-24', label: 'February 24, 2021' },
-        { date: '2021-02-25', label: 'February 25, 2021' },
-        { date: '2021-02-26', label: 'February 26, 2021' },
-        { date: '2021-03-16', label: 'March 16, 2021' },
-        { date: '2021-03-17', label: 'March 17, 2021' },
-        { date: '2021-03-18', label: 'March 18, 2021' },
-        { date: '2021-07-20', label: 'July 20, 2021' },
-        { date: '2021-07-22', label: 'July 22, 2021' },
-        { date: '2021-07-25', label: 'July 25, 2021' },
-        { date: '2021-07-27', label: 'July 27, 2021' },
-        { date: '2021-08-26', label: 'August 26, 2021' },
-        { date: '2021-08-31', label: 'August 31, 2021' },
-        { date: '2021-09-02', label: 'September 2, 2021' }
-      ]
-    };
+
 
     // Check authentication on page load
     window.onload = async () => {
@@ -375,42 +303,66 @@ async function deleteQuestion(questionId) {
         
         currentUser = data.user;
         updateUserInterface();
+        loadYears();
+
       } catch (error) {
         window.location.href = '/login.html';
       }
     };
 
     function updateUserInterface() {
-      document.getElementById('welcomeMessage').textContent = `Welcome, ${currentUser.username}!`;
-      
-      const roleElement = document.getElementById('userRole');
-      roleElement.textContent = currentUser.role === 'superuser' ? 'Super User' : 'User';
-      roleElement.className = `role-badge ${currentUser.role}`;
-      
-      const questionsTitle = document.getElementById('questionsTitle');
-      questionsTitle.textContent = currentUser.role === 'superuser' ? 'All Questions' : 'Your Questions';
-    }
+  document.getElementById('welcomeMessage').textContent = `Welcome, ${currentUser.username}!`;
+  const roleElement = document.getElementById('userRole');
+  roleElement.textContent = currentUser.role === 'superuser' ? 'Super User' : 'User';
+  roleElement.className = `role-badge ${currentUser.role}`;
+
+  const questionsTitle = document.getElementById('questionsTitle');
+  questionsTitle.textContent = currentUser.role === 'superuser' ? 'All Questions' : 'Your Questions';
+
+  // Show admin features for superusers
+  if (currentUser.role === 'superuser') {
+    document.getElementById('adminToggleBtn').style.display = 'block';
+    // Load years immediately for superusers so PYQ dropdown is populated
+    loadYears();
+  } else {
+    // For regular users, still load basic years for the PYQ dropdown
+    const defaultYears = [2025, 2024, 2023, 2022, 2021];
+    updateMainPyqYearDropdown(defaultYears);
+  }
+}
 
     // Populate exam dates based on selected year
-    function populateExamDates() {
-      const year = document.getElementById('year').value;
-      const examDateSelect = document.getElementById('examDate');
-      
-      // Clear existing options
-      examDateSelect.innerHTML = '<option value="">-- Select Exam Date --</option>';
-      
-      if (year && examDates[year]) {
-        examDates[year].forEach(dateObj => {
-          const option = document.createElement('option');
-          option.value = dateObj.date;
-          option.textContent = dateObj.label;
-          examDateSelect.appendChild(option);
-        });
-        examDateSelect.required = true;
-      } else {
-        examDateSelect.required = false;
-      }
-    }
+   // Update the existing populateExamDates function to use dynamic loading
+async function populateExamDates() {
+  const year = document.getElementById('year').value;
+  const examDateSelect = document.getElementById('examDate');
+
+  // Clear existing options
+  examDateSelect.innerHTML = '<option value="">-- Select Exam Date --</option>';
+
+  if (!year) {
+    examDateSelect.required = false;
+    return;
+  }
+
+  try {
+    const response = await fetch(`/admin/exam-dates/${year}`);
+    if (!response.ok) throw new Error('Failed to load exam dates');
+
+    const examDates = await response.json();
+    examDates.forEach(dateObj => {
+      const option = document.createElement('option');
+      option.value = dateObj.date;
+      option.textContent = dateObj.label;
+      examDateSelect.appendChild(option);
+    });
+
+    examDateSelect.required = true;
+  } catch (err) {
+    console.error('Error loading exam dates:', err);
+    examDateSelect.required = false;
+  }
+}
 
     // Toggle PYQ fields based on selection
     function togglePyqFields() {
@@ -708,6 +660,7 @@ async function loadQuestions() {
 // Add these functions to your index.html script section
 
 // Function to load years from backend
+// Function to load years from backend
 async function loadYears() {
   try {
     const response = await fetch('/admin/years');
@@ -715,32 +668,57 @@ async function loadYears() {
       const years = await response.json();
       updateYearDropdowns(years);
       displayCurrentYears(years);
+      updateMainPyqYearDropdown(years);
+    } else {
+      console.error('Failed to load years:', response.status);
+      // Fallback to default years if API fails
+      const defaultYears = [2025, 2024, 2023, 2022, 2021];
+      updateMainPyqYearDropdown(defaultYears);
     }
   } catch (error) {
     console.error('Error loading years:', error);
+    // Fallback to default years if API fails
+    const defaultYears = [2025, 2024, 2023, 2022, 2021];
+    updateMainPyqYearDropdown(defaultYears);
   }
 }
-
-// Function to update year dropdowns
+// Function to update the main PYQ year dropdown
+// Function to update the main PYQ year dropdown
+function updateMainPyqYearDropdown(years) {
+  const mainYearSelect = document.getElementById('year');
+  
+  // Store currently selected value
+  const currentValue = mainYearSelect.value;
+  
+  // Clear existing options
+  mainYearSelect.innerHTML = '<option value="">-- Select Year --</option>';
+  
+  // Add years to main dropdown (sort in descending order for better UX)
+  years.sort((a, b) => b - a).forEach(year => {
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year;
+    mainYearSelect.appendChild(option);
+  });
+  
+  // Restore previously selected value if it still exists
+  if (currentValue && years.includes(parseInt(currentValue))) {
+    mainYearSelect.value = currentValue;
+  }
+}
+// Function to update year dropdowns (admin panel only)
 function updateYearDropdowns(years) {
-  const yearSelect = document.getElementById('year');
   const dateManagementYear = document.getElementById('dateManagementYear');
   
   // Clear existing options
-  yearSelect.innerHTML = '<option value="">-- Select Year --</option>';
   dateManagementYear.innerHTML = '<option value="">Select Year</option>';
   
-  // Add years to dropdowns
-  years.forEach(year => {
-    const option1 = document.createElement('option');
-    option1.value = year;
-    option1.textContent = year;
-    yearSelect.appendChild(option1);
-    
-    const option2 = document.createElement('option');
-    option2.value = year;
-    option2.textContent = year;
-    dateManagementYear.appendChild(option2);
+  // Add years to admin dropdown
+  years.sort((a, b) => b - a).forEach(year => {
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year;
+    dateManagementYear.appendChild(option);
   });
 }
 
@@ -761,6 +739,7 @@ function displayCurrentYears(years) {
 }
 
 // Function to add a new year
+// Function to add a new year
 async function addYear() {
   const newYearInput = document.getElementById('newYear');
   const year = parseInt(newYearInput.value);
@@ -780,7 +759,7 @@ async function addYear() {
     if (response.ok) {
       alert('Year added successfully!');
       newYearInput.value = '';
-      loadYears(); // Reload years
+      loadYears(); // This will now update both admin and main dropdowns
     } else {
       const error = await response.json();
       alert('Error: ' + error.error);
@@ -791,6 +770,7 @@ async function addYear() {
   }
 }
 
+// Function to remove a year
 // Function to remove a year
 async function removeYear(year) {
   if (!confirm(`Are you sure you want to remove year ${year}?`)) {
@@ -804,7 +784,13 @@ async function removeYear(year) {
     
     if (response.ok) {
       alert('Year removed successfully!');
-      loadYears(); // Reload years
+      loadYears(); // This will now update both admin and main dropdowns
+      
+      // Clear exam date dropdown if the removed year was selected
+      const mainYearSelect = document.getElementById('year');
+      if (parseInt(mainYearSelect.value) === year) {
+        document.getElementById('examDate').innerHTML = '<option value="">-- Select Exam Date --</option>';
+      }
     } else {
       const error = await response.json();
       alert('Error: ' + error.error);
@@ -814,7 +800,6 @@ async function removeYear(year) {
     alert('Error removing year');
   }
 }
-
 // Function to load exam dates for selected year
 async function loadExamDatesForYear() {
   const year = document.getElementById('dateManagementYear').value;
@@ -871,7 +856,7 @@ async function addExamDate() {
       alert('Exam date added successfully!');
       document.getElementById('newExamDate').value = '';
       loadExamDatesForYear(); // Reload exam dates
-      loadAvailableExamDates(); // Update the main form's exam dates
+     populateExamDates(); // Update the main form's exam dates
     } else {
       const error = await response.json();
       alert('Error: ' + error.error);
@@ -898,7 +883,7 @@ async function removeExamDate(year, date) {
     if (response.ok) {
       alert('Exam date removed successfully!');
       loadExamDatesForYear(); // Reload exam dates
-      loadAvailableExamDates(); // Update the main form's exam dates
+      populateExamDates(); // Update the main form's exam dates
     } else {
       const error = await response.json();
       alert('Error: ' + error.error);
@@ -910,31 +895,6 @@ async function removeExamDate(year, date) {
 }
 
 // Function to load available exam dates for the main form
-async function loadAvailableExamDates() {
-  const year = document.getElementById('year').value;
-  if (!year) return;
-  
-  try {
-    const response = await fetch(`/admin/exam-dates/${year}`);
-    if (response.ok) {
-      const examDates = await response.json();
-      const examDateSelect = document.getElementById('examDate');
-      
-      // Clear existing options
-      examDateSelect.innerHTML = '<option value="">-- Select Exam Date --</option>';
-      
-      // Add exam dates to dropdown
-      examDates.forEach(dateObj => {
-        const option = document.createElement('option');
-        option.value = dateObj.date;
-        option.textContent = dateObj.label;
-        examDateSelect.appendChild(option);
-      });
-    }
-  } catch (error) {
-    console.error('Error loading exam dates:', error);
-  }
-}
 
 // Function to show/hide admin section
 function toggleAdminSection() {
@@ -944,7 +904,10 @@ function toggleAdminSection() {
   if (adminSection.style.display === 'none') {
     adminSection.style.display = 'block';
     toggleBtn.style.display = 'none';
-    loadYears(); // Load years when opening admin panel
+    // Reload years when opening admin panel to ensure fresh data
+    if (currentUser.role === 'superuser') {
+      loadYears();
+    }
   } else {
     adminSection.style.display = 'none';
     toggleBtn.style.display = 'block';
@@ -952,9 +915,6 @@ function toggleAdminSection() {
 }
 
 // Update the existing populateExamDates function
-function populateExamDates() {
-  loadAvailableExamDates();
-}
 
 // Update the existing updateUserInterface function to include admin panel setup
 function updateUserInterface() {
@@ -972,6 +932,26 @@ function updateUserInterface() {
     document.getElementById('adminToggleBtn').style.display = 'block';
   }
 }
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const response = await fetch('/api/years');
+      const data = await response.json();
+
+      const yearSelect = document.getElementById('year');
+      yearSelect.innerHTML = ''; // Clear existing options
+
+      data.years.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        yearSelect.appendChild(option);
+      });
+    } catch (error) {
+      console.error('Error loading years:', error);
+    }
+  });
+
   </script>
 </body>
 </html>

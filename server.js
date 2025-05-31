@@ -204,7 +204,6 @@ app.post('/submit', requireAuth, async (req, res) => {
 });
 
 // Get questions based on user role with enhanced filtering and sorting
-// Get questions based on user role with enhanced filtering and sorting
 app.get('/questions', requireAuth, async (req, res) => {
   try {
     const { subject, pyqType, year, shift, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
@@ -253,6 +252,94 @@ app.get('/questions', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Error fetching questions:', err);
     res.status(500).json({ error: "Error fetching questions." });
+  }
+});
+
+// Get single question by ID (for editing)
+app.get('/questions/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    let filter = { _id: id };
+    
+    // Regular users can only access their own questions
+    if (req.session.userRole !== 'superuser') {
+      filter.createdBy = req.session.userId;
+    }
+    
+    const question = await MCQ.findOne(filter);
+    
+    if (!question) {
+      return res.status(404).json({ error: 'Question not found or access denied' });
+    }
+    
+    res.json(question);
+  } catch (err) {
+    console.error('Error fetching question:', err);
+    res.status(500).json({ error: 'Error fetching question' });
+  }
+});
+
+// Update question (only own questions for regular users)
+app.put('/questions/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // Convert correctOption to 0-based index if it's 1-based
+    if (updateData.correctOption && typeof updateData.correctOption === 'string') {
+      updateData.correctOption = parseInt(updateData.correctOption) - 1;
+    }
+    
+    let filter = { _id: id };
+    
+    // Regular users can only update their own questions
+    if (req.session.userRole !== 'superuser') {
+      filter.createdBy = req.session.userId;
+    }
+    
+    const updatedQuestion = await MCQ.findOneAndUpdate(
+      filter, 
+      updateData, 
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedQuestion) {
+      return res.status(404).json({ error: 'Question not found or access denied' });
+    }
+    
+    res.json({ 
+      message: 'Question updated successfully', 
+      question: updatedQuestion 
+    });
+  } catch (err) {
+    console.error('Error updating question:', err);
+    res.status(500).json({ error: 'Error updating question' });
+  }
+});
+
+// Delete question (only own questions for regular users)
+app.delete('/questions/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    let filter = { _id: id };
+    
+    // Regular users can only delete their own questions
+    if (req.session.userRole !== 'superuser') {
+      filter.createdBy = req.session.userId;
+    }
+    
+    const deletedQuestion = await MCQ.findOneAndDelete(filter);
+    
+    if (!deletedQuestion) {
+      return res.status(404).json({ error: 'Question not found or access denied' });
+    }
+    
+    res.json({ message: 'Question deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting question:', err);
+    res.status(500).json({ error: 'Error deleting question' });
   }
 });
 
@@ -345,64 +432,6 @@ app.get('/stats', requireAuth, async (req, res) => {
   }
 });
 
-// Delete question (only own questions for regular users)
-app.delete('/questions/:id', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    let filter = { _id: id };
-    
-    // Regular users can only delete their own questions
-    if (req.session.userRole !== 'superuser') {
-      filter.createdBy = req.session.userId;
-    }
-    
-    const deletedQuestion = await MCQ.findOneAndDelete(filter);
-    
-    if (!deletedQuestion) {
-      return res.status(404).json({ error: 'Question not found or access denied' });
-    }
-    
-    res.json({ message: 'Question deleted successfully' });
-  } catch (err) {
-    console.error('Error deleting question:', err);
-    res.status(500).json({ error: 'Error deleting question' });
-  }
-});
-
-// Update question (only own questions for regular users)
-app.put('/questions/:id', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updateData = req.body;
-    
-    let filter = { _id: id };
-    
-    // Regular users can only update their own questions
-    if (req.session.userRole !== 'superuser') {
-      filter.createdBy = req.session.userId;
-    }
-    
-    const updatedQuestion = await MCQ.findOneAndUpdate(
-      filter, 
-      updateData, 
-      { new: true, runValidators: true }
-    );
-    
-    if (!updatedQuestion) {
-      return res.status(404).json({ error: 'Question not found or access denied' });
-    }
-    
-    res.json({ 
-      message: 'Question updated successfully', 
-      question: updatedQuestion 
-    });
-  } catch (err) {
-    console.error('Error updating question:', err);
-    res.status(500).json({ error: 'Error updating question' });
-  }
-});
-
 // Super user only route to get all users
 app.get('/users', requireSuperUser, async (req, res) => {
   try {
@@ -430,210 +459,8 @@ app.get('/available-years', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Error fetching available years' });
   }
 });
-// Get single question by ID (for editing)
-app.get('/questions/:id', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    let filter = { _id: id };
-    
-    // Regular users can only access their own questions
-    if (req.session.userRole !== 'superuser') {
-      filter.createdBy = req.session.userId;
-    }
-    
-    const question = await MCQ.findOne(filter);
-    
-    if (!question) {
-      return res.status(404).json({ error: 'Question not found or access denied' });
-    }
-    
-    res.json(question);
-  } catch (err) {
-    console.error('Error fetching question:', err);
-    res.status(500).json({ error: 'Error fetching question' });
-  }
-});
-// Add these routes to server.js (before app.listen)
 
-// Year Management Routes (Superuser only)
-// Add this to your server.js file - replace the existing year management routes
-
-// Year Management Routes (Superuser only)
-// Add this to your server.js file - replace the existing year management routes
-
-// Year Management Routes (Superuser only)
-app.get('/admin/years', requireSuperUser, async (req, res) => {
-  try {
-    // Get years from database
-    const existingYears = await MCQ.distinct('year', { year: { $exists: true, $ne: null } });
-    
-    // Default years that should always be available
-    const defaultYears = [2021, 2022, 2023, 2024, 2025];
-    
-    // Combine and sort unique years
-    const allYears = [...new Set([...existingYears, ...defaultYears])].sort((a, b) => b - a);
-    
-    res.json(allYears);
-  } catch (err) {
-    console.error('Error fetching years:', err);
-    res.status(500).json({ error: 'Error fetching years' });
-  }
-});
-
-app.post('/admin/years', requireSuperUser, async (req, res) => {
-  try {
-    const { year } = req.body;
-    
-    if (!year || year < 2020 || year > 2030) {
-      return res.status(400).json({ error: 'Invalid year. Must be between 2020 and 2030.' });
-    }
-    
-    // Check if year already exists in database
-    const existingYear = await MCQ.findOne({ year: parseInt(year) });
-    
-    if (existingYear) {
-      return res.status(400).json({ error: 'Year already exists in the database.' });
-    }
-    
-    // Since we're not storing years separately, we'll just validate and return success
-    // The year will be available once questions are created with it
-    res.json({ message: 'Year added successfully', year: parseInt(year) });
-  } catch (err) {
-    console.error('Error adding year:', err);
-    res.status(500).json({ error: 'Error adding year' });
-  }
-});
-
-app.delete('/admin/years/:year', requireSuperUser, async (req, res) => {
-  try {
-    const { year } = req.params;
-    const yearNum = parseInt(year);
-    
-    // Check if year is used in existing questions
-    const questionsWithYear = await MCQ.countDocuments({ year: yearNum });
-    
-    if (questionsWithYear > 0) {
-      return res.status(400).json({ 
-        error: `Cannot delete year ${year}. It is used in ${questionsWithYear} question(s).` 
-      });
-    }
-    
-    res.json({ message: `Year ${year} deleted successfully` });
-  } catch (err) {
-    console.error('Error deleting year:', err);
-    res.status(500).json({ error: 'Error deleting year' });
-  }
-});
-
-// Exam Date Management Routes (Superuser only)
-app.get('/admin/exam-dates/:year', requireSuperUser, async (req, res) => {
-  try {
-    const { year } = req.params;
-    const yearNum = parseInt(year);
-    
-    // Get exam dates from database for the specific year
-    const examDates = await MCQ.distinct('examDate', { 
-      year: yearNum, 
-      examDate: { $exists: true, $ne: null } 
-    });
-    
-    // Get hardcoded exam dates for the year (from your existing examDates object)
-    const hardcodedDates = getHardcodedExamDates(yearNum);
-    
-    // Combine and deduplicate dates
-    const allDates = [...new Set([...examDates, ...hardcodedDates.map(d => new Date(d.date))])];
-    
-    // Format dates for response
-    const formattedDates = allDates.map(date => {
-      const dateObj = new Date(date);
-      return {
-        date: dateObj.toISOString().split('T')[0],
-        label: dateObj.toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })
-      };
-    }).sort((a, b) => new Date(a.date) - new Date(b.date));
-    
-    res.json(formattedDates);
-  } catch (err) {
-    console.error('Error fetching exam dates:', err);
-    res.status(500).json({ error: 'Error fetching exam dates' });
-  }
-});
-
-app.post('/admin/exam-dates', requireSuperUser, async (req, res) => {
-  try {
-    const { year, date } = req.body;
-    
-    if (!year || !date) {
-      return res.status(400).json({ error: 'Year and date are required' });
-    }
-    
-    const examDate = new Date(date);
-    if (isNaN(examDate.getTime())) {
-      return res.status(400).json({ error: 'Invalid date format' });
-    }
-    
-    // Check if this date already exists for this year
-    const existingDate = await MCQ.findOne({ 
-      year: parseInt(year), 
-      examDate: examDate 
-    });
-    
-    if (existingDate) {
-      return res.status(400).json({ error: 'This exam date already exists for the selected year' });
-    }
-    
-    res.json({ 
-      message: 'Exam date added successfully', 
-      examDate: {
-        date: date,
-        label: examDate.toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })
-      }
-    });
-  } catch (err) {
-    console.error('Error adding exam date:', err);
-    res.status(500).json({ error: 'Error adding exam date' });
-  }
-});
-
-app.delete('/admin/exam-dates', requireSuperUser, async (req, res) => {
-  try {
-    const { year, date } = req.body;
-    
-    if (!year || !date) {
-      return res.status(400).json({ error: 'Year and date are required' });
-    }
-    
-    const examDate = new Date(date);
-    
-    // Check if date is used in existing questions
-    const questionsWithDate = await MCQ.countDocuments({ 
-      year: parseInt(year),
-      examDate: examDate
-    });
-    
-    if (questionsWithDate > 0) {
-      return res.status(400).json({ 
-        error: `Cannot delete this exam date. It is used in ${questionsWithDate} question(s).` 
-      });
-    }
-    
-    res.json({ message: 'Exam date deleted successfully' });
-  } catch (err) {
-    console.error('Error deleting exam date:', err);
-    res.status(500).json({ error: 'Error deleting exam date' });
-  }
-});
-
-// Helper function to get hardcoded exam dates (move your existing examDates object here)
+// Helper function to get hardcoded exam dates
 function getHardcodedExamDates(year) {
   const examDates = {
     2025: [
@@ -705,8 +532,183 @@ function getHardcodedExamDates(year) {
   
   return examDates[year] || [];
 }
-app.listen(3000, () => {
-  console.log('Server started on http://localhost:3000');
+
+// Year Management Routes (Superuser only)
+app.get('/admin/years', requireSuperUser, async (req, res) => {
+  try {
+    // Get years from database
+    const existingYears = await MCQ.distinct('year', { year: { $exists: true, $ne: null } });
+    
+    // Default years that should always be available
+    const defaultYears = [2021, 2022, 2023, 2024, 2025];
+    
+    // Combine and sort unique years
+    const allYears = [...new Set([...existingYears, ...defaultYears])].sort((a, b) => b - a);
+    
+    res.json(allYears);
+  } catch (err) {
+    console.error('Error fetching years:', err);
+    res.status(500).json({ error: 'Error fetching years' });
+  }
+});
+// Public route: Get all available years for the frontend dropdown (no auth required)
+app.get('/api/years', async (req, res) => {
+  try {
+    // Fetch distinct years from MCQs (excluding null)
+    const dbYears = await MCQ.distinct('year', { year: { $exists: true, $ne: null } });
+
+    // Default years (ensure older papers are always available)
+    const defaultYears = [2021, 2022, 2023, 2024, 2025];
+
+    // Merge and deduplicate
+    const combinedYears = [...new Set([...dbYears, ...defaultYears])].sort((a, b) => b - a);
+
+    res.json({ years: combinedYears });
+  } catch (err) {
+    console.error('Error fetching public years:', err);
+    res.status(500).json({ error: 'Failed to fetch years' });
+  }
+});
+
+
+app.post('/admin/years', requireSuperUser, async (req, res) => {
+  try {
+    const { year } = req.body;
+    
+    if (!year || year < 2020 || year > 2030) {
+      return res.status(400).json({ error: 'Invalid year. Must be between 2020 and 2030.' });
+    }
+    
+    // Since we're not storing years separately, we'll just validate and return success
+    // The year will be available once questions are created with it
+    res.json({ message: 'Year added successfully', year: parseInt(year) });
+  } catch (err) {
+    console.error('Error adding year:', err);
+    res.status(500).json({ error: 'Error adding year' });
+  }
+});
+
+app.delete('/admin/years/:year', requireSuperUser, async (req, res) => {
+  try {
+    const { year } = req.params;
+    const yearNum = parseInt(year);
+    
+    // Check if year is used in existing questions
+    const questionsWithYear = await MCQ.countDocuments({ year: yearNum });
+    
+    if (questionsWithYear > 0) {
+      return res.status(400).json({ 
+        error: `Cannot delete year ${year}. It is used in ${questionsWithYear} question(s).` 
+      });
+    }
+    
+    res.json({ message: `Year ${year} deleted successfully` });
+  } catch (err) {
+    console.error('Error deleting year:', err);
+    res.status(500).json({ error: 'Error deleting year' });
+  }
+});
+
+// Exam Date Management Routes (Superuser only)
+app.get('/admin/exam-dates/:year', requireSuperUser, async (req, res) => {
+  try {
+    const { year } = req.params;
+    const yearNum = parseInt(year);
+    
+    // Get exam dates from database for the specific year
+    const examDates = await MCQ.distinct('examDate', { 
+      year: yearNum, 
+      examDate: { $exists: true, $ne: null } 
+    });
+    
+    // Get hardcoded exam dates for the year
+    const hardcodedDates = getHardcodedExamDates(yearNum);
+    
+    // Combine and deduplicate dates
+    const allDates = [...new Set([...examDates, ...hardcodedDates.map(d => new Date(d.date))])];
+    
+    // Format dates for response
+    const formattedDates = allDates.map(date => {
+      const dateObj = new Date(date);
+      return {
+        date: dateObj.toISOString().split('T')[0],
+        label: dateObj.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })
+      };
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    res.json(formattedDates);
+  } catch (err) {
+    console.error('Error fetching exam dates:', err);
+    res.status(500).json({ error: 'Error fetching exam dates' });
+  }
+});
+
+app.post('/admin/exam-dates', requireSuperUser, async (req, res) => {
+  try {
+    const { year, date } = req.body;
+    
+    if (!year || !date) {
+      return res.status(400).json({ error: 'Year and date are required' });
+    }
+    
+    const examDate = new Date(date);
+    if (isNaN(examDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+    
+    res.json({ 
+      message: 'Exam date added successfully', 
+      examDate: {
+        date: date,
+        label: examDate.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        })
+      }
+    });
+  } catch (err) {
+    console.error('Error adding exam date:', err);
+    res.status(500).json({ error: 'Error adding exam date' });
+  }
+});
+
+app.delete('/admin/exam-dates', requireSuperUser, async (req, res) => {
+  try {
+    const { year, date } = req.body;
+    
+    if (!year || !date) {
+      return res.status(400).json({ error: 'Year and date are required' });
+    }
+    
+    const examDate = new Date(date);
+    
+    // Check if date is used in existing questions
+    const questionsWithDate = await MCQ.countDocuments({ 
+      year: parseInt(year),
+      examDate: examDate
+    });
+    
+    if (questionsWithDate > 0) {
+      return res.status(400).json({ 
+        error: `Cannot delete this exam date. It is used in ${questionsWithDate} question(s).` 
+      });
+    }
+    
+    res.json({ message: 'Exam date deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting exam date:', err);
+    res.status(500).json({ error: 'Error deleting exam date' });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server started on http://localhost:${PORT}`);
   console.log('Features added:');
   console.log('✅ Question numbering system (no uniqueness constraint)');
   console.log('✅ PYQ type classification');
@@ -714,4 +716,5 @@ app.listen(3000, () => {
   console.log('✅ Enhanced filtering and sorting');
   console.log('✅ Question statistics');
   console.log('✅ CRUD operations for questions');
+  console.log('✅ Admin year and exam date management');
 });
