@@ -6,6 +6,8 @@ const MongoStore = require('connect-mongo');
 
 const MCQ = require('./mcqModel');
 const User = require('./userModel');
+const Year = require('./yearModel');
+const ExamDate = require('./examDateModel');  
 const app = express();
 
 mongoose.connect(process.env.MONGODB_URI, {
@@ -157,14 +159,15 @@ app.post('/submit', requireAuth, async (req, res) => {
           error: 'Shift and Year are required for JEE MAIN PYQ questions' 
         });
       }
-
       const yearNum = parseInt(year);
-      if (yearNum < 2021 || yearNum > 2025) {
-        return res.status(400).json({ 
-          error: 'Invalid year. Year must be between 2021 and 2025.' 
-        });
-      }
-    }
+  if (yearNum < 1000) {
+    return res.status(400).json({ 
+      error: 'Invalid year. Year must be a 4-digit number (minimum 1000).' 
+    });
+  }
+}
+    
+      
 
     const correctOptionIndex = parseInt(correctOption, 10) - 1;
 
@@ -534,16 +537,18 @@ function getHardcodedExamDates(year) {
 }
 
 // Year Management Routes (Superuser only)
+// Year Management Routes (Superuser only)
 app.get('/admin/years', requireSuperUser, async (req, res) => {
   try {
-    // Get years from database
-    const existingYears = await MCQ.distinct('year', { year: { $exists: true, $ne: null } });
+    // Get years from Year collection
+    const yearDocs = await Year.find().sort({ year: -1 });
+    const storedYears = yearDocs.map(doc => doc.year);
     
     // Default years that should always be available
     const defaultYears = [2021, 2022, 2023, 2024, 2025];
     
     // Combine and sort unique years
-    const allYears = [...new Set([...existingYears, ...defaultYears])].sort((a, b) => b - a);
+    const allYears = [...new Set([...storedYears, ...defaultYears])].sort((a, b) => b - a);
     
     res.json(allYears);
   } catch (err) {
@@ -551,17 +556,19 @@ app.get('/admin/years', requireSuperUser, async (req, res) => {
     res.status(500).json({ error: 'Error fetching years' });
   }
 });
-// Public route: Get all available years for the frontend dropdown (no auth required)
+
+// Public route: Get all available years for the frontend dropdown
 app.get('/api/years', async (req, res) => {
   try {
-    // Fetch distinct years from MCQs (excluding null)
-    const dbYears = await MCQ.distinct('year', { year: { $exists: true, $ne: null } });
-
-    // Default years (ensure older papers are always available)
+    // Get years from Year collection
+    const yearDocs = await Year.find().sort({ year: -1 });
+    const storedYears = yearDocs.map(doc => doc.year);
+    
+    // Default years
     const defaultYears = [2021, 2022, 2023, 2024, 2025];
-
+    
     // Merge and deduplicate
-    const combinedYears = [...new Set([...dbYears, ...defaultYears])].sort((a, b) => b - a);
+    const combinedYears = [...new Set([...storedYears, ...defaultYears])].sort((a, b) => b - a);
 
     res.json({ years: combinedYears });
   } catch (err) {
@@ -570,17 +577,24 @@ app.get('/api/years', async (req, res) => {
   }
 });
 
-
 app.post('/admin/years', requireSuperUser, async (req, res) => {
   try {
     const { year } = req.body;
     
-    if (!year || year < 2020 || year > 2030) {
-      return res.status(400).json({ error: 'Invalid year. Must be between 2020 and 2030.' });
+     if (!year || isNaN(year) || year < 1000) {
+      return res.status(400).json({ error: 'Invalid year. Must be a valid number.' });
     }
     
-    // Since we're not storing years separately, we'll just validate and return success
-    // The year will be available once questions are created with it
+    // Check if year already exists
+    const existingYear = await Year.findOne({ year: parseInt(year) });
+    if (existingYear) {
+      return res.status(400).json({ error: 'Year already exists' });
+    }
+    
+    // Create and save new year
+    const newYear = new Year({ year: parseInt(year) });
+    await newYear.save();
+    
     res.json({ message: 'Year added successfully', year: parseInt(year) });
   } catch (err) {
     console.error('Error adding year:', err);
@@ -593,6 +607,12 @@ app.delete('/admin/years/:year', requireSuperUser, async (req, res) => {
     const { year } = req.params;
     const yearNum = parseInt(year);
     
+    // Don't allow deletion of default years
+    const defaultYears = [2021, 2022, 2023, 2024, 2025];
+    if (defaultYears.includes(yearNum)) {
+      return res.status(400).json({ error: 'Cannot delete default years' });
+    }
+    
     // Check if year is used in existing questions
     const questionsWithYear = await MCQ.countDocuments({ year: yearNum });
     
@@ -602,6 +622,9 @@ app.delete('/admin/years/:year', requireSuperUser, async (req, res) => {
       });
     }
     
+    // Delete from Year collection
+    await Year.deleteOne({ year: yearNum });
+    
     res.json({ message: `Year ${year} deleted successfully` });
   } catch (err) {
     console.error('Error deleting year:', err);
@@ -610,37 +633,84 @@ app.delete('/admin/years/:year', requireSuperUser, async (req, res) => {
 });
 
 // Exam Date Management Routes (Superuser only)
+// Exam Date Management Routes (Superuser only)
 app.get('/admin/exam-dates/:year', requireSuperUser, async (req, res) => {
   try {
     const { year } = req.params;
     const yearNum = parseInt(year);
     
-    // Get exam dates from database for the specific year
-    const examDates = await MCQ.distinct('examDate', { 
-      year: yearNum, 
-      examDate: { $exists: true, $ne: null } 
-    });
+    // Get exam dates from ExamDate collection
+    const storedDates = await ExamDate.find({ year: yearNum }).sort({ date: 1 });
     
     // Get hardcoded exam dates for the year
     const hardcodedDates = getHardcodedExamDates(yearNum);
     
-    // Combine and deduplicate dates
-    const allDates = [...new Set([...examDates, ...hardcodedDates.map(d => new Date(d.date))])];
+    // Create a map to merge dates
+    const dateMap = new Map();
     
-    // Format dates for response
-    const formattedDates = allDates.map(date => {
-      const dateObj = new Date(date);
-      return {
-        date: dateObj.toISOString().split('T')[0],
-        label: dateObj.toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })
-      };
-    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+    // Add hardcoded dates
+    hardcodedDates.forEach(d => {
+      dateMap.set(d.date, {
+        date: d.date,
+        label: d.label
+      });
+    });
     
-    res.json(formattedDates);
+    // Add stored dates (will override hardcoded if same date)
+    storedDates.forEach(d => {
+      dateMap.set(d.date.toISOString().split('T')[0], {
+        date: d.date.toISOString().split('T')[0],
+        label: d.label
+      });
+    });
+    
+    // Convert map to array and sort
+    const allDates = Array.from(dateMap.values())
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    res.json(allDates);
+  } catch (err) {
+    console.error('Error fetching exam dates:', err);
+    res.status(500).json({ error: 'Error fetching exam dates' });
+  }
+});
+
+// Also update the public route used by the main form
+app.get('/admin/exam-dates/:year', async (req, res) => {
+  try {
+    const { year } = req.params;
+    const yearNum = parseInt(year);
+    
+    // Get exam dates from ExamDate collection
+    const storedDates = await ExamDate.find({ year: yearNum }).sort({ date: 1 });
+    
+    // Get hardcoded exam dates for the year
+    const hardcodedDates = getHardcodedExamDates(yearNum);
+    
+    // Create a map to merge dates
+    const dateMap = new Map();
+    
+    // Add hardcoded dates
+    hardcodedDates.forEach(d => {
+      dateMap.set(d.date, {
+        date: d.date,
+        label: d.label
+      });
+    });
+    
+    // Add stored dates (will override hardcoded if same date)
+    storedDates.forEach(d => {
+      dateMap.set(d.date.toISOString().split('T')[0], {
+        date: d.date.toISOString().split('T')[0],
+        label: d.label
+      });
+    });
+    
+    // Convert map to array and sort
+    const allDates = Array.from(dateMap.values())
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    res.json(allDates);
   } catch (err) {
     console.error('Error fetching exam dates:', err);
     res.status(500).json({ error: 'Error fetching exam dates' });
@@ -660,15 +730,37 @@ app.post('/admin/exam-dates', requireSuperUser, async (req, res) => {
       return res.status(400).json({ error: 'Invalid date format' });
     }
     
+    // Check if exam date already exists
+    const existingDate = await ExamDate.findOne({ 
+      year: parseInt(year), 
+      date: examDate 
+    });
+    
+    if (existingDate) {
+      return res.status(400).json({ error: 'Exam date already exists for this year' });
+    }
+    
+    // Create label for the date
+    const label = examDate.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    
+    // Save new exam date
+    const newExamDate = new ExamDate({
+      year: parseInt(year),
+      date: examDate,
+      label: label
+    });
+    
+    await newExamDate.save();
+    
     res.json({ 
       message: 'Exam date added successfully', 
       examDate: {
         date: date,
-        label: examDate.toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })
+        label: label
       }
     });
   } catch (err) {
@@ -686,10 +778,19 @@ app.delete('/admin/exam-dates', requireSuperUser, async (req, res) => {
     }
     
     const examDate = new Date(date);
+    const yearNum = parseInt(year);
+    
+    // Check if it's a hardcoded date
+    const hardcodedDates = getHardcodedExamDates(yearNum);
+    const isHardcoded = hardcodedDates.some(d => d.date === date);
+    
+    if (isHardcoded) {
+      return res.status(400).json({ error: 'Cannot delete default exam dates' });
+    }
     
     // Check if date is used in existing questions
     const questionsWithDate = await MCQ.countDocuments({ 
-      year: parseInt(year),
+      year: yearNum,
       examDate: examDate
     });
     
@@ -698,6 +799,12 @@ app.delete('/admin/exam-dates', requireSuperUser, async (req, res) => {
         error: `Cannot delete this exam date. It is used in ${questionsWithDate} question(s).` 
       });
     }
+    
+    // Delete from ExamDate collection
+    await ExamDate.deleteOne({ 
+      year: yearNum,
+      date: examDate
+    });
     
     res.json({ message: 'Exam date deleted successfully' });
   } catch (err) {

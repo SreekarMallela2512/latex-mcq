@@ -28,7 +28,7 @@
     <h3>📅 Year Management</h3>
     <div class="admin-controls">
       <div class="input-group">
-        <input type="number" id="newYear" placeholder="Add new year (e.g., 2026)" min="2020" max="2030" />
+        <input type="number" id="newYear" placeholder="Add new year (e.g., 2026)" min="1000" />
         <button onclick="addYear()" class="admin-btn add-btn">➕ Add Year</button>
       </div>
       <div class="year-list">
@@ -323,7 +323,7 @@ async function deleteQuestion(questionId) {
   if (currentUser.role === 'superuser') {
     document.getElementById('adminToggleBtn').style.display = 'block';
     // Load years immediately for superusers so PYQ dropdown is populated
-    loadYears();
+   
   } else {
     // For regular users, still load basic years for the PYQ dropdown
     const defaultYears = [2025, 2024, 2023, 2022, 2021];
@@ -663,29 +663,37 @@ async function loadQuestions() {
 // Function to load years from backend
 async function loadYears() {
   try {
+    console.log('Loading years...');
     const response = await fetch('/admin/years');
+    console.log('Response status:', response.status);
+    
     if (response.ok) {
       const years = await response.json();
+      console.log('Years received from backend:', years);
+      
       updateYearDropdowns(years);
       displayCurrentYears(years);
       updateMainPyqYearDropdown(years);
     } else {
       console.error('Failed to load years:', response.status);
-      // Fallback to default years if API fails
       const defaultYears = [2025, 2024, 2023, 2022, 2021];
       updateMainPyqYearDropdown(defaultYears);
     }
   } catch (error) {
     console.error('Error loading years:', error);
-    // Fallback to default years if API fails
     const defaultYears = [2025, 2024, 2023, 2022, 2021];
     updateMainPyqYearDropdown(defaultYears);
   }
 }
 // Function to update the main PYQ year dropdown
 // Function to update the main PYQ year dropdown
-function updateMainPyqYearDropdown(years) {
+function updateMainPyqYearDropdown(yearsData) {
   const mainYearSelect = document.getElementById('year');
+  
+  // Handle both array and object with years property
+  let years = Array.isArray(yearsData) ? yearsData : (yearsData.years || []);
+  
+  console.log('Updating main PYQ dropdown with years:', years);
   
   // Store currently selected value
   const currentValue = mainYearSelect.value;
@@ -707,8 +715,11 @@ function updateMainPyqYearDropdown(years) {
   }
 }
 // Function to update year dropdowns (admin panel only)
-function updateYearDropdowns(years) {
+function updateYearDropdowns(yearsData) {
   const dateManagementYear = document.getElementById('dateManagementYear');
+  
+  // Handle both array and object with years property
+  let years = Array.isArray(yearsData) ? yearsData : (yearsData.years || []);
   
   // Clear existing options
   dateManagementYear.innerHTML = '<option value="">Select Year</option>';
@@ -722,10 +733,14 @@ function updateYearDropdowns(years) {
   });
 }
 
-// Function to display current years in admin panel
-function displayCurrentYears(years) {
+function displayCurrentYears(yearsData) {
   const yearsList = document.getElementById('yearsList');
   yearsList.innerHTML = '';
+  
+  // Handle both array and object with years property
+  let years = Array.isArray(yearsData) ? yearsData : (yearsData.years || []);
+  
+  console.log('Displaying current years:', years);
   
   years.forEach(year => {
     const yearItem = document.createElement('div');
@@ -737,15 +752,14 @@ function displayCurrentYears(years) {
     yearsList.appendChild(yearItem);
   });
 }
-
 // Function to add a new year
 // Function to add a new year
 async function addYear() {
   const newYearInput = document.getElementById('newYear');
   const year = parseInt(newYearInput.value);
   
-  if (!year || year < 2020 || year > 2030) {
-    alert('Please enter a valid year between 2020 and 2030');
+   if (!year || year < 1000) {
+    alert('Please enter a valid 4-digit year');
     return;
   }
   
@@ -759,7 +773,11 @@ async function addYear() {
     if (response.ok) {
       alert('Year added successfully!');
       newYearInput.value = '';
-      loadYears(); // This will now update both admin and main dropdowns
+      
+      // Add a small delay before reloading to ensure backend has saved the data
+      setTimeout(() => {
+        loadYears();
+      }, 500);
     } else {
       const error = await response.json();
       alert('Error: ' + error.error);
@@ -933,25 +951,7 @@ function updateUserInterface() {
   }
 }
 
-  window.addEventListener('DOMContentLoaded', async () => {
-    try {
-      const response = await fetch('/api/years');
-      const data = await response.json();
-
-      const yearSelect = document.getElementById('year');
-      yearSelect.innerHTML = ''; // Clear existing options
-
-      data.years.forEach(year => {
-        const option = document.createElement('option');
-        option.value = year;
-        option.textContent = year;
-        yearSelect.appendChild(option);
-      });
-    } catch (error) {
-      console.error('Error loading years:', error);
-    }
-  });
-
+ 
   </script>
 </body>
 </html>
