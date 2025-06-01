@@ -812,6 +812,68 @@ app.delete('/admin/exam-dates', requireSuperUser, async (req, res) => {
     res.status(500).json({ error: 'Error deleting exam date' });
   }
 });
+// Public route: Get all available years (no auth required)
+app.get('/public/years', async (req, res) => {
+  try {
+    // Get years from Year collection
+    const yearDocs = await Year.find().sort({ year: -1 });
+    const storedYears = yearDocs.map(doc => doc.year);
+    
+    // Default years
+    const defaultYears = [2021, 2022, 2023, 2024, 2025];
+    
+    // Merge and deduplicate
+    const combinedYears = [...new Set([...storedYears, ...defaultYears])].sort((a, b) => b - a);
+
+    res.json(combinedYears);
+  } catch (err) {
+    console.error('Error fetching public years:', err);
+    // Fallback to default years if error
+    res.json([2025, 2024, 2023, 2022, 2021]);
+  }
+});
+
+// Public route for exam dates (no auth required)
+app.get('/public/exam-dates/:year', async (req, res) => {
+  try {
+    const { year } = req.params;
+    const yearNum = parseInt(year);
+    
+    // Get exam dates from ExamDate collection
+    const storedDates = await ExamDate.find({ year: yearNum }).sort({ date: 1 });
+    
+    // Get hardcoded exam dates for the year
+    const hardcodedDates = getHardcodedExamDates(yearNum);
+    
+    // Create a map to merge dates
+    const dateMap = new Map();
+    
+    // Add hardcoded dates
+    hardcodedDates.forEach(d => {
+      dateMap.set(d.date, {
+        date: d.date,
+        label: d.label
+      });
+    });
+    
+    // Add stored dates
+    storedDates.forEach(d => {
+      dateMap.set(d.date.toISOString().split('T')[0], {
+        date: d.date.toISOString().split('T')[0],
+        label: d.label
+      });
+    });
+    
+    // Convert map to array and sort
+    const allDates = Array.from(dateMap.values())
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    res.json(allDates);
+  } catch (err) {
+    console.error('Error fetching exam dates:', err);
+    res.status(500).json({ error: 'Error fetching exam dates' });
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

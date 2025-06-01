@@ -25,11 +25,11 @@ const mcqSchema = new mongoose.Schema({
   },
   year: {
     type: Number,
-    min: 2021,
-    max: 2025
+    
   },
   examDate: {
-    type: Date
+    type: Date,
+    required : false
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
