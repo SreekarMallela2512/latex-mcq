@@ -163,7 +163,118 @@
     
     <hr />
     <h2 id="questionsTitle">Your Questions</h2>
-    <button onclick="loadQuestions()">🔍 View Questions</button>
+    <!-- Replace the existing view questions button and questionList with this complete section -->
+<button onclick="loadQuestions()" class="view-questions-btn">🔍 View Questions</button>
+
+<!-- Search and Filter Container -->
+<div class="search-filter-container" id="searchFilterContainer" style="display: none;">
+  <!-- Search Bar -->
+  <div class="search-section">
+    <input 
+      type="text" 
+      id="searchInput" 
+      placeholder="🔍 Search questions, options, topics..." 
+      class="search-bar"
+      onkeypress="if(event.key === 'Enter') searchQuestions()"
+    />
+    <button onclick="searchQuestions()" class="search-btn">Search</button>
+    <button onclick="clearSearch()" class="clear-search-btn">Clear</button>
+  </div>
+
+  <!-- Filter Toggle Button -->
+  <button onclick="toggleFilters()" class="filter-toggle-btn">
+    <span id="filterToggleIcon">▼</span> Filters
+    <span id="activeFilterCount" class="filter-count" style="display: none;">0</span>
+  </button>
+</div>
+
+<!-- Advanced Filters Section -->
+<div id="filterSection" class="filter-section" style="display: none;">
+  <div class="filter-grid">
+    <!-- Subject Filter -->
+    <div class="filter-group">
+      <label>Subject:</label>
+      <select id="filterSubject" onchange="updateTopicFilter(); applyFilters();">
+        <option value="">All Subjects</option>
+        <option value="Physics">Physics</option>
+        <option value="Chemistry">Chemistry</option>
+        <option value="Maths">Maths</option>
+      </select>
+    </div>
+
+    <!-- Topic Filter -->
+    <div class="filter-group">
+      <label>Topic:</label>
+      <select id="filterTopic" onchange="applyFilters()">
+        <option value="">All Topics</option>
+      </select>
+    </div>
+
+    <!-- Difficulty Filter -->
+    <div class="filter-group">
+      <label>Difficulty:</label>
+      <select id="filterDifficulty" onchange="applyFilters()">
+        <option value="">All Difficulties</option>
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+    </div>
+
+    <!-- PYQ Type Filter -->
+    <div class="filter-group">
+      <label>PYQ Type:</label>
+      <select id="filterPyqType" onchange="applyFilters()">
+        <option value="">All Types</option>
+        <option value="Not PYQ">Not PYQ</option>
+        <option value="JEE MAIN PYQ">JEE MAIN PYQ</option>
+      </select>
+    </div>
+
+    <!-- Year Filter -->
+    <div class="filter-group">
+      <label>Year:</label>
+      <select id="filterYear" onchange="applyFilters()">
+        <option value="">All Years</option>
+      </select>
+    </div>
+
+    <!-- Sort Options -->
+    <div class="filter-group">
+      <label>Sort By:</label>
+      <select id="sortBy" onchange="applyFilters()">
+        <option value="createdAt-desc">Newest First</option>
+        <option value="createdAt-asc">Oldest First</option>
+        <option value="questionNo-asc">Question No. (A-Z)</option>
+        <option value="questionNo-desc">Question No. (Z-A)</option>
+        <option value="difficulty-asc">Difficulty (Easy → Hard)</option>
+        <option value="difficulty-desc">Difficulty (Hard → Easy)</option>
+      </select>
+    </div>
+
+    <!-- Creator Filter (Superuser only) -->
+    <div class="filter-group" id="creatorFilterGroup" style="display: none;">
+      <label>Created By:</label>
+      <select id="filterCreator" onchange="applyFilters()">
+        <option value="">All Users</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Filter Actions -->
+  <div class="filter-actions">
+    <button onclick="resetFilters()" class="reset-filters-btn">Reset All Filters</button>
+  </div>
+</div>
+
+<!-- Results Summary -->
+<div id="resultsSummary" class="results-summary" style="display: none;">
+  Showing <span id="resultsCount">0</span> questions
+  <span id="searchSummary"></span>
+</div>
+
+<!-- Question List -->
+<div id="questionList"></div>
     <div id="questionList"></div>
     <button type="button" onclick="cancelEdit()" id="cancelEditBtn" style="display: none;">Cancel Edit</button>
   </div>
@@ -569,6 +680,21 @@ form.addEventListener('submit', async function(event) {
 });
     // Update the loadQuestions function in index.html to show creation date/time
 
+// Global variables for search and filter
+let allQuestions = [];
+let filteredQuestions = [];
+let currentSearchTerm = '';
+let activeFilters = {
+  subject: '',
+  topic: '',
+  difficulty: '',
+  pyqType: '',
+  year: '',
+  creator: '',
+  sortBy: 'createdAt-desc'
+};
+
+// New loadQuestions function that integrates with search/filter
 async function loadQuestions() {
   try {
     const response = await fetch('/questions');
@@ -578,88 +704,374 @@ async function loadQuestions() {
       return;
     }
     
-    const questions = await response.json();
-    const list = document.getElementById('questionList');
-    list.innerHTML = '';
-
-    if (questions.length === 0) {
-      list.innerHTML = '<p>No questions found.</p>';
+    allQuestions = await response.json();
+    
+    // Show search and filter container
+    document.getElementById('searchFilterContainer').style.display = 'flex';
+    
+    if (allQuestions.length === 0) {
+      document.getElementById('questionList').innerHTML = '<p>No questions found.</p>';
+      document.getElementById('resultsSummary').style.display = 'none';
       return;
     }
 
-    questions.forEach((q, i) => {
-      const div = document.createElement('div');
-      div.className = 'question-card';
-      
-      let creatorInfo = '';
-      if (currentUser.role === 'superuser' && q.createdBy) {
-        // Format the creation date and time
-        const createdDate = new Date(q.createdAt);
-        const formattedDateTime = createdDate.toLocaleString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true
-        });
-
-        creatorInfo = `
-          <div class="creator-info">
-            <div><strong>Created by:</strong> ${q.createdBy.username || 'Unknown'}</div>
-            <div><strong>Created on:</strong> ${formattedDateTime}</div>
-          </div>
-        `;
-      }
-
-      let pyqInfo = '';
-      if (q.pyqType && q.pyqType !== 'Not PYQ') {
-        pyqInfo = `<div class="pyq-info">
-          <strong>PYQ:</strong> ${q.pyqType}
-          ${q.shift && q.shift !== 'N/A' ? ` - ${q.shift}` : ''}
-          ${q.year ? ` (${q.year})` : ''}
-          ${q.examDate ? ` - ${new Date(q.examDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}` : ''}
-        </div>`;
-      }
-
-      // Add edit/delete buttons for superuser
-      let actionButtons = '';
-      if (currentUser.role === 'superuser') {
-        actionButtons = `
-          <div class="action-buttons">
-            <button onclick="editQuestion('${q._id}')" class="edit-btn">✏️ Edit</button>
-            <button onclick="deleteQuestion('${q._id}')" class="delete-btn">🗑️ Delete</button>
-          </div>
-        `;
-      }
-      
-      div.innerHTML = `
-        <div class="question-header">
-          <strong>Question No: ${q.questionNo}</strong>
-        </div>
-        <strong>Q${i + 1}:</strong> ${q.question}<br/>
-        <ul>
-          ${q.options.map((opt, idx) => `
-            <li${idx === q.correctOption ? ' style="font-weight:bold;color:green;"' : ''}>${String.fromCharCode(65 + idx)}. ${opt}</li>`).join('')}
-        </ul>
-        <div class="question-meta">
-          <em>Subject:</em> ${q.subject}, <em>Topic:</em> ${q.topic}, <em>Difficulty:</em> ${q.difficulty}
-        </div>
-        ${pyqInfo}
-        ${creatorInfo}
-        ${actionButtons}
-        <hr/>
-      `;
-      list.appendChild(div);
-    });
-
-    MathJax.typesetPromise([list]);
+    // Initialize filters on first load
+    initializeFilters();
+    
+    // Display all questions initially
+    filteredQuestions = [...allQuestions];
+    displayFilteredQuestions();
+    updateResultsSummary();
+    
   } catch (error) {
     console.error('Error loading questions:', error);
     alert('Error loading questions. Please try again.');
   }
 }
+
+// Initialize filters
+function initializeFilters() {
+  // Show creator filter for superusers
+  if (currentUser && currentUser.role === 'superuser') {
+    document.getElementById('creatorFilterGroup').style.display = 'block';
+    loadCreators();
+  }
+  
+  // Load years for filter
+  loadFilterYears();
+}
+
+// Load unique creators for filter (superuser only)
+function loadCreators() {
+  const creators = [...new Set(allQuestions
+    .filter(q => q.createdBy && q.createdBy.username)
+    .map(q => q.createdBy.username))]
+    .sort();
+  
+  const creatorSelect = document.getElementById('filterCreator');
+  creatorSelect.innerHTML = '<option value="">All Users</option>';
+  
+  creators.forEach(creator => {
+    const option = document.createElement('option');
+    option.value = creator;
+    option.textContent = creator;
+    creatorSelect.appendChild(option);
+  });
+}
+
+// Load years for filter dropdown
+function loadFilterYears() {
+  const years = [...new Set(allQuestions
+    .filter(q => q.year)
+    .map(q => q.year))]
+    .sort((a, b) => b - a);
+  
+  const yearSelect = document.getElementById('filterYear');
+  yearSelect.innerHTML = '<option value="">All Years</option>';
+  
+  years.forEach(year => {
+    const option = document.createElement('option');
+    option.value = year;
+    option.textContent = year;
+    yearSelect.appendChild(option);
+  });
+}
+
+// Update topic filter based on selected subject
+function updateTopicFilter() {
+  const selectedSubject = document.getElementById('filterSubject').value;
+  const topicSelect = document.getElementById('filterTopic');
+  
+  topicSelect.innerHTML = '<option value="">All Topics</option>';
+  
+  if (!selectedSubject) return;
+  
+  let topics = [];
+  if (selectedSubject === 'Physics') topics = physicsTopics;
+  else if (selectedSubject === 'Chemistry') topics = chemistryTopics;
+  else if (selectedSubject === 'Maths') topics = mathsTopics;
+  
+  topics.forEach(topic => {
+    const option = document.createElement('option');
+    option.value = topic;
+    option.textContent = topic;
+    topicSelect.appendChild(option);
+  });
+}
+
+// Toggle filter section visibility
+function toggleFilters() {
+  const filterSection = document.getElementById('filterSection');
+  const toggleIcon = document.getElementById('filterToggleIcon');
+  
+  if (filterSection.style.display === 'none') {
+    filterSection.style.display = 'block';
+    toggleIcon.textContent = '▲';
+  } else {
+    filterSection.style.display = 'none';
+    toggleIcon.textContent = '▼';
+  }
+}
+
+// Search functionality
+function searchQuestions() {
+  const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+  currentSearchTerm = searchTerm;
+  applyFilters();
+}
+
+// Clear search
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  currentSearchTerm = '';
+  applyFilters();
+}
+
+// Apply all filters and search
+function applyFilters() {
+  // Get filter values
+  activeFilters = {
+    subject: document.getElementById('filterSubject').value,
+    topic: document.getElementById('filterTopic').value,
+    difficulty: document.getElementById('filterDifficulty').value,
+    pyqType: document.getElementById('filterPyqType').value,
+    year: document.getElementById('filterYear').value,
+    creator: document.getElementById('filterCreator')?.value || '',
+    sortBy: document.getElementById('sortBy').value
+  };
+
+  // Start with all questions
+  filteredQuestions = [...allQuestions];
+
+  // Apply filters
+  if (activeFilters.subject) {
+    filteredQuestions = filteredQuestions.filter(q => q.subject === activeFilters.subject);
+  }
+
+  if (activeFilters.topic) {
+    filteredQuestions = filteredQuestions.filter(q => q.topic === activeFilters.topic);
+  }
+
+  if (activeFilters.difficulty) {
+    filteredQuestions = filteredQuestions.filter(q => q.difficulty === activeFilters.difficulty);
+  }
+
+  if (activeFilters.pyqType) {
+    filteredQuestions = filteredQuestions.filter(q => q.pyqType === activeFilters.pyqType);
+  }
+
+  if (activeFilters.year) {
+    filteredQuestions = filteredQuestions.filter(q => q.year === parseInt(activeFilters.year));
+  }
+
+  if (activeFilters.creator && currentUser.role === 'superuser') {
+    filteredQuestions = filteredQuestions.filter(q => 
+      q.createdBy && q.createdBy.username === activeFilters.creator
+    );
+  }
+
+  // Apply search
+  if (currentSearchTerm) {
+    filteredQuestions = filteredQuestions.filter(q => {
+      const searchableText = [
+        q.questionNo || '',
+        q.question || '',
+        ...(q.options || []),
+        q.subject || '',
+        q.topic || '',
+        q.difficulty || '',
+        q.pyqType || ''
+      ].join(' ').toLowerCase();
+      
+      return searchableText.includes(currentSearchTerm);
+    });
+  }
+
+  // Apply sorting
+  const [sortField, sortOrder] = activeFilters.sortBy.split('-');
+  filteredQuestions.sort((a, b) => {
+    let compareValue = 0;
+    
+    switch(sortField) {
+      case 'createdAt':
+        compareValue = new Date(a.createdAt) - new Date(b.createdAt);
+        break;
+      case 'questionNo':
+        compareValue = (a.questionNo || '').localeCompare(b.questionNo || '');
+        break;
+      case 'difficulty':
+        const difficultyOrder = { easy: 1, medium: 2, hard: 3 };
+        compareValue = (difficultyOrder[a.difficulty] || 0) - (difficultyOrder[b.difficulty] || 0);
+        break;
+    }
+    
+    return sortOrder === 'desc' ? -compareValue : compareValue;
+  });
+
+  // Update UI
+  displayFilteredQuestions();
+  updateFilterCount();
+  updateResultsSummary();
+}
+
+// Display filtered questions
+function displayFilteredQuestions() {
+  const list = document.getElementById('questionList');
+  list.innerHTML = '';
+
+  if (filteredQuestions.length === 0) {
+    list.innerHTML = '<p>No questions match your search/filters.</p>';
+    return;
+  }
+
+  filteredQuestions.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'question-card';
+    
+    let creatorInfo = '';
+    if (currentUser.role === 'superuser' && q.createdBy) {
+      const createdDate = new Date(q.createdAt);
+      const formattedDateTime = createdDate.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+
+      creatorInfo = `
+        <div class="creator-info">
+          <div><strong>Created by:</strong> ${q.createdBy.username || 'Unknown'}</div>
+          <div><strong>Created on:</strong> ${formattedDateTime}</div>
+        </div>
+      `;
+    }
+
+ // In the displayFilteredQuestions() function, update the pyqInfo section:
+
+let pyqInfo = '';
+if (q.pyqType && q.pyqType !== 'Not PYQ') {
+  pyqInfo = `<div class="pyq-info">
+    <strong>PYQ:</strong> ${q.pyqType}
+    ${q.examDate ? ` - ${new Date(q.examDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}` : ''}
+    ${q.shift && q.shift !== 'N/A' ? ` - ${q.shift}` : ''}
+  </div>`;
+}
+    let actionButtons = '';
+    if (currentUser.role === 'superuser') {
+      actionButtons = `
+        <div class="action-buttons">
+          <button onclick="editQuestion('${q._id}')" class="edit-btn">✏️ Edit</button>
+          <button onclick="deleteQuestion('${q._id}')" class="delete-btn">🗑️ Delete</button>
+        </div>
+      `;
+    }
+    
+    // Highlight search terms
+    let questionHtml = highlightSearchTerm(q.question);
+    let optionsHtml = q.options.map((opt, idx) => {
+      let optionHtml = highlightSearchTerm(opt);
+      return `<li${idx === q.correctOption ? ' style="font-weight:bold;color:green;"' : ''}>${String.fromCharCode(65 + idx)}. ${optionHtml}</li>`;
+    }).join('');
+    
+    div.innerHTML = `
+      <div class="question-header">
+        <strong>Question No: ${highlightSearchTerm(q.questionNo)}</strong>
+      </div>
+      <strong>Q${i + 1}:</strong> ${questionHtml}<br/>
+      <ul>${optionsHtml}</ul>
+      <div class="question-meta">
+        <em>Subject:</em> ${q.subject}, <em>Topic:</em> ${q.topic}, <em>Difficulty:</em> ${q.difficulty}
+      </div>
+      ${pyqInfo}
+      ${creatorInfo}
+      ${actionButtons}
+      <hr/>
+    `;
+    list.appendChild(div);
+  });
+
+  // Re-render MathJax
+  if (typeof MathJax !== 'undefined') {
+    MathJax.typesetPromise([list]).catch(err => console.error('MathJax error:', err));
+  }
+}
+
+// Highlight search terms in text
+function highlightSearchTerm(text) {
+  if (!currentSearchTerm || !text) return text;
+  
+  // Escape special regex characters
+  const escapedTerm = currentSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escapedTerm})`, 'gi');
+  return text.replace(regex, '<span class="search-highlight">$1</span>');
+}
+
+// Update active filter count
+function updateFilterCount() {
+  let count = 0;
+  
+  if (activeFilters.subject) count++;
+  if (activeFilters.topic) count++;
+  if (activeFilters.difficulty) count++;
+  if (activeFilters.pyqType) count++;
+  if (activeFilters.year) count++;
+  if (activeFilters.creator) count++;
+  
+  const filterCountElement = document.getElementById('activeFilterCount');
+  if (count > 0) {
+    filterCountElement.textContent = count;
+    filterCountElement.style.display = 'inline-block';
+  } else {
+    filterCountElement.style.display = 'none';
+  }
+}
+
+// Update results summary
+function updateResultsSummary() {
+  const summaryDiv = document.getElementById('resultsSummary');
+  const countSpan = document.getElementById('resultsCount');
+  const searchSummarySpan = document.getElementById('searchSummary');
+  
+  if (!summaryDiv || !countSpan) return;
+  
+  summaryDiv.style.display = 'block';
+  countSpan.textContent = filteredQuestions.length;
+  
+  if (currentSearchTerm && searchSummarySpan) {
+    searchSummarySpan.textContent = ` matching "${currentSearchTerm}"`;
+  } else if (searchSummarySpan) {
+    searchSummarySpan.textContent = '';
+  }
+}
+
+// Reset all filters
+function resetFilters() {
+  // Reset form values
+  document.getElementById('filterSubject').value = '';
+  document.getElementById('filterTopic').value = '';
+  document.getElementById('filterDifficulty').value = '';
+  document.getElementById('filterPyqType').value = '';
+  document.getElementById('filterYear').value = '';
+  document.getElementById('sortBy').value = 'createdAt-desc';
+  
+  const creatorFilter = document.getElementById('filterCreator');
+  if (creatorFilter) {
+    creatorFilter.value = '';
+  }
+  
+  // Reset search
+  document.getElementById('searchInput').value = '';
+  currentSearchTerm = '';
+  
+  // Reset topic dropdown
+  document.getElementById('filterTopic').innerHTML = '<option value="">All Topics</option>';
+  
+  // Apply filters (which will now show all questions)
+  applyFilters();
+}  
 // Add these functions to your index.html script section
 
 // Function to load years from backend
