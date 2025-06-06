@@ -516,61 +516,221 @@ async function populateExamDates() {
     let previewTimeout;
 
     function renderLatex() {
-      clearTimeout(previewTimeout);
+  clearTimeout(previewTimeout);
 
-      previewTimeout = setTimeout(() => {
-        const input = document.getElementById('question').value.trim();
-        const preview = document.getElementById('preview');
+  previewTimeout = setTimeout(async () => {
+    const input = document.getElementById('question').value.trim();
+    const preview = document.getElementById('preview');
 
-        if (!input) {
-          preview.innerHTML = '<em style="color: #777;">Preview will appear here...</em>';
-          return;
+    if (!input) {
+      preview.innerHTML = '<em style="color: #777;">Preview will appear here...</em>';
+      return;
+    }
+
+    // Process LaTeX content
+    let processed = processLatexContent(input);
+    preview.innerHTML = processed;
+
+    // Render with MathJax
+    MathJax.typesetClear([preview]);
+    MathJax.typesetPromise([preview]).catch(err => {
+      preview.innerHTML = '<span style="color:red;">LaTeX rendering error.</span>';
+      console.error('MathJax error:', err);
+    });
+
+    // Auto-classification logic (unchanged)
+    if (input.length > 30 && !editMode) {
+      const difficultyInput = document.getElementById('difficulty');
+      const difficultyStatus = document.getElementById('classificationStatus');
+      
+      if (!difficultyInput.value || difficultyInput.value === '') {
+        if (difficultyStatus) {
+          difficultyStatus.textContent = '(Classifying...)';
+          difficultyStatus.style.color = '#1976d2';
         }
-
-        let escaped = input.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        escaped = escaped.replace(/\$\$(.+?)\$\$/gs, (_, match) => `\\[${match.trim()}\\]`);
-        escaped = escaped.replace(/(^|[^\\])\$(.+?)\$/g, (_, prefix, match) => `${prefix}\\(${match.trim()}\\)`);
-
-        preview.innerHTML = escaped;
-
-        MathJax.typesetClear([preview]);
-        MathJax.typesetPromise([preview]).catch(err => {
-          preview.innerHTML = '<span style="color:red;">LaTeX rendering error.</span>';
-          console.error('MathJax error:', err);
-        });
-      }, 300);
-    }
-
-    function renderOptionLatex(num) {
-      const input = document.getElementById(`option${num}`).value.trim();
-      const preview = document.getElementById(`preview-option${num}`);
-
-      if (!input) {
-        preview.innerHTML = '<em style="color:#777;">Preview...</em>';
-        return;
+        
+        try {
+          const difficulty = await classifyDifficulty(input);
+          
+          if (difficulty) {
+            difficultyInput.value = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+            
+            if (difficultyStatus) {
+              difficultyStatus.textContent = '✓ Auto-classified';
+              difficultyStatus.style.color = '#4caf50';
+            }
+            
+            difficultyInput.style.backgroundColor = '#e8f5e9';
+            setTimeout(() => {
+              difficultyInput.style.backgroundColor = '#f0f0f0';
+            }, 2000);
+          } else {
+            if (difficultyStatus) {
+              difficultyStatus.textContent = '❌ Classification failed';
+              difficultyStatus.style.color = '#f44336';
+            }
+          }
+        } catch (error) {
+          console.error('Classification error:', error);
+          if (difficultyStatus) {
+            difficultyStatus.textContent = '❌ Classification error';
+            difficultyStatus.style.color = '#f44336';
+          }
+        }
       }
-
-      let escaped = input.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      escaped = escaped.replace(/\$\$(.+?)\$\$/gs, (_, match) => `\\[${match.trim()}\\]`);
-      escaped = escaped.replace(/(^|[^\\])\$(.+?)\$/g, (_, prefix, match) => `${prefix}\\(${match.trim()}\\)`);
-
-      preview.innerHTML = escaped;
-
-      MathJax.typesetClear([preview]);
-      MathJax.typesetPromise([preview]).catch(err => {
-        preview.innerHTML = '<span style="color:red;">Rendering error</span>';
-        console.error('MathJax error:', err);
-      });
     }
+  }, 800);
+}
 
-    function showSuccess() {
-      const msg = document.getElementById("successMessage");
-      msg.textContent = "✅ Question submitted successfully!";
-      msg.style.color = "green";
-      setTimeout(() => (msg.textContent = ""), 3000);
-      return true;
-    }
+function renderOptionLatex(num) {
+  const input = document.getElementById(`option${num}`).value.trim();
+  const preview = document.getElementById(`preview-option${num}`);
 
+  if (!input) {
+    preview.innerHTML = '<em style="color:#777;">Preview...</em>';
+    return;
+  }
+
+  // Process LaTeX content
+  let processed = processLatexContent(input);
+  preview.innerHTML = processed;
+
+  // Render with MathJax
+  MathJax.typesetClear([preview]);
+  MathJax.typesetPromise([preview]).catch(err => {
+    preview.innerHTML = '<span style="color:red;">LaTeX rendering error.</span>';
+    console.error(`MathJax error for option ${num}:`, err);
+  });
+}
+
+// Unified LaTeX processing function
+function processLatexContent(input) {
+  // First, escape HTML to prevent XSS
+  let escaped = input.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  
+  // Create a temporary placeholder system to avoid conflicts
+  const placeholders = [];
+  let placeholderIndex = 0;
+  
+  // Function to create placeholder
+  function createPlaceholder(content) {
+    const placeholder = `__LATEX_PLACEHOLDER_${placeholderIndex}__`;
+    placeholders[placeholderIndex] = content;
+    placeholderIndex++;
+    return placeholder;
+  }
+  
+  // Process display math first (to avoid conflicts with inline)
+  // Handle $$...$$ (display math with dollars)
+  escaped = escaped.replace(/\$\$([\s\S]+?)\$\$/g, (_, match) => {
+    return createPlaceholder(`\$$${match.trim()}\$$`);
+  });
+  
+  // Handle $$...$$ (display math with brackets)
+  escaped = escaped.replace(/\\$$([\s\S]+?)\\$$/g, (_, match) => {
+    return createPlaceholder(`\$$${match.trim()}\$$`);
+  });
+  
+  // Process inline math
+  // Handle $...$ (inline math with dollars) - be careful not to match $$
+  escaped = escaped.replace(/(?<!\$)\$(?!\$)((?:[^\$\\]|\\[\s\S])+?)\$(?!\$)/g, (_, match) => {
+    return createPlaceholder(`\$$${match.trim()}\$$`);
+  });
+  
+  // Handle $$...$$ (inline math with parentheses)
+  escaped = escaped.replace(/\\$$([\s\S]+?)\\$$/g, (_, match) => {
+    return createPlaceholder(`\$$${match.trim()}\$$`);
+  });
+  
+  // Replace placeholders with actual LaTeX
+  placeholders.forEach((content, index) => {
+    const placeholder = `__LATEX_PLACEHOLDER_${index}__`;
+    escaped = escaped.replace(placeholder, content);
+  });
+  
+  return escaped;
+}
+
+// Optional: Add a helper function to validate LaTeX syntax
+function validateLatex(latex) {
+  // Basic validation to check for common LaTeX errors
+  const openBraces = (latex.match(/{/g) || []).length;
+  const closeBraces = (latex.match(/}/g) || []).length;
+  const openParens = (latex.match(/$$/g) || []).length;
+  const closeParens = (latex.match(/$$/g) || []).length;
+  const openBrackets = (latex.match(/$$/g) || []).length;
+  const closeBrackets = (latex.match(/$$/g) || []).length;
+  
+  if (openBraces !== closeBraces) {
+    return { valid: false, error: 'Mismatched curly braces {}' };
+  }
+  if (openParens !== closeParens) {
+    return { valid: false, error: 'Mismatched parentheses ()' };
+  }
+  if (openBrackets !== closeBrackets) {
+    return { valid: false, error: 'Mismatched square brackets []' };
+  }
+  
+  return { valid: true };
+}
+
+// Optional: Add support for additional LaTeX environments
+function processAdvancedLatex(input) {
+  let processed = processLatexContent(input);
+  
+  // Handle common LaTeX environments
+  // Convert begin{align} to proper format if needed
+  processed = processed.replace(/\\begin{align\*?}([\s\S]*?)\\end{align\*?}/g, (match) => {
+    return match; // MathJax handles these natively
+  });
+  
+  // Handle equation environment
+  processed = processed.replace(/\\begin{equation\*?}([\s\S]*?)\\end{equation\*?}/g, (match) => {
+    return match; // MathJax handles these natively
+  });
+  
+  return processed;
+}
+
+// Add this CSS to handle overflow specifically for MathJax rendered content
+const mathJaxOverflowStyles = `
+<style>
+  .MathJax_Display {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    max-width: 100% !important;
+    margin: 0.5em 0 !important;
+  }
+  
+  .MathJax {
+    display: inline-block !important;
+    max-width: 100% !important;
+  }
+  
+  #preview .MathJax_Display,
+  .option-preview .MathJax_Display {
+    font-size: 0.9em !important;
+  }
+  
+  /* Handle scrollbar for math content */
+  .MathJax_Display::-webkit-scrollbar {
+    height: 6px;
+  }
+  
+  .MathJax_Display::-webkit-scrollbar-thumb {
+    background: #a3b1c6;
+    border-radius: 3px;
+  }
+</style>
+`;
+
+// Add the styles to the document head if not already present
+if (!document.getElementById('mathjax-overflow-styles')) {
+  const styleElement = document.createElement('div');
+  styleElement.id = 'mathjax-overflow-styles';
+  styleElement.innerHTML = mathJaxOverflowStyles;
+  document.head.appendChild(styleElement.firstElementChild);
+}
 function clearForm() {
   document.getElementById('mcqForm').reset();
   document.getElementById('preview').innerHTML = '';
