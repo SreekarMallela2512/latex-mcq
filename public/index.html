@@ -515,7 +515,7 @@ async function populateExamDates() {
 
     let previewTimeout;
 
-    function renderLatex() {
+   function renderLatex() {
   clearTimeout(previewTimeout);
 
   previewTimeout = setTimeout(async () => {
@@ -538,7 +538,7 @@ async function populateExamDates() {
       console.error('MathJax error:', err);
     });
 
-    // Auto-classification logic (unchanged)
+    // Auto-classification logic
     if (input.length > 30 && !editMode) {
       const difficultyInput = document.getElementById('difficulty');
       const difficultyStatus = document.getElementById('classificationStatus');
@@ -608,128 +608,13 @@ function processLatexContent(input) {
   // First, escape HTML to prevent XSS
   let escaped = input.replace(/</g, '&lt;').replace(/>/g, '&gt;');
   
-  // Create a temporary placeholder system to avoid conflicts
-  const placeholders = [];
-  let placeholderIndex = 0;
-  
-  // Function to create placeholder
-  function createPlaceholder(content) {
-    const placeholder = `__LATEX_PLACEHOLDER_${placeholderIndex}__`;
-    placeholders[placeholderIndex] = content;
-    placeholderIndex++;
-    return placeholder;
-  }
-  
-  // Process display math first (to avoid conflicts with inline)
-  // Handle $$...$$ (display math with dollars)
-  escaped = escaped.replace(/\$\$([\s\S]+?)\$\$/g, (_, match) => {
-    return createPlaceholder(`\$$${match.trim()}\$$`);
-  });
-  
-  // Handle $$...$$ (display math with brackets)
-  escaped = escaped.replace(/\\$$([\s\S]+?)\\$$/g, (_, match) => {
-    return createPlaceholder(`\$$${match.trim()}\$$`);
-  });
-  
-  // Process inline math
-  // Handle $...$ (inline math with dollars) - be careful not to match $$
-  escaped = escaped.replace(/(?<!\$)\$(?!\$)((?:[^\$\\]|\\[\s\S])+?)\$(?!\$)/g, (_, match) => {
-    return createPlaceholder(`\$$${match.trim()}\$$`);
-  });
-  
-  // Handle $$...$$ (inline math with parentheses)
-  escaped = escaped.replace(/\\$$([\s\S]+?)\\$$/g, (_, match) => {
-    return createPlaceholder(`\$$${match.trim()}\$$`);
-  });
-  
-  // Replace placeholders with actual LaTeX
-  placeholders.forEach((content, index) => {
-    const placeholder = `__LATEX_PLACEHOLDER_${index}__`;
-    escaped = escaped.replace(placeholder, content);
-  });
+  // Handle various LaTeX formats
+  escaped = escaped.replace(/\$\$([\s\S]+?)\$\$/g, (_, match) => `\$$${match.trim()}\$$`);
+  escaped = escaped.replace(/\\$$(.+?)\\$$/gs, (_, match) => `\$$${match.trim()}\$$`);
+  escaped = escaped.replace(/(?<!\$)\$(?!\$)(.+?)(?<!\$)\$(?!\$)/gs, (_, match) => `\$$${match.trim()}\$$`);
+  escaped = escaped.replace(/\\$$(.+?)\\$$/gs, (_, match) => `\$$${match.trim()}\$$`);
   
   return escaped;
-}
-
-// Optional: Add a helper function to validate LaTeX syntax
-function validateLatex(latex) {
-  // Basic validation to check for common LaTeX errors
-  const openBraces = (latex.match(/{/g) || []).length;
-  const closeBraces = (latex.match(/}/g) || []).length;
-  const openParens = (latex.match(/$$/g) || []).length;
-  const closeParens = (latex.match(/$$/g) || []).length;
-  const openBrackets = (latex.match(/$$/g) || []).length;
-  const closeBrackets = (latex.match(/$$/g) || []).length;
-  
-  if (openBraces !== closeBraces) {
-    return { valid: false, error: 'Mismatched curly braces {}' };
-  }
-  if (openParens !== closeParens) {
-    return { valid: false, error: 'Mismatched parentheses ()' };
-  }
-  if (openBrackets !== closeBrackets) {
-    return { valid: false, error: 'Mismatched square brackets []' };
-  }
-  
-  return { valid: true };
-}
-
-// Optional: Add support for additional LaTeX environments
-function processAdvancedLatex(input) {
-  let processed = processLatexContent(input);
-  
-  // Handle common LaTeX environments
-  // Convert begin{align} to proper format if needed
-  processed = processed.replace(/\\begin{align\*?}([\s\S]*?)\\end{align\*?}/g, (match) => {
-    return match; // MathJax handles these natively
-  });
-  
-  // Handle equation environment
-  processed = processed.replace(/\\begin{equation\*?}([\s\S]*?)\\end{equation\*?}/g, (match) => {
-    return match; // MathJax handles these natively
-  });
-  
-  return processed;
-}
-
-// Add this CSS to handle overflow specifically for MathJax rendered content
-const mathJaxOverflowStyles = `
-<style>
-  .MathJax_Display {
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    max-width: 100% !important;
-    margin: 0.5em 0 !important;
-  }
-  
-  .MathJax {
-    display: inline-block !important;
-    max-width: 100% !important;
-  }
-  
-  #preview .MathJax_Display,
-  .option-preview .MathJax_Display {
-    font-size: 0.9em !important;
-  }
-  
-  /* Handle scrollbar for math content */
-  .MathJax_Display::-webkit-scrollbar {
-    height: 6px;
-  }
-  
-  .MathJax_Display::-webkit-scrollbar-thumb {
-    background: #a3b1c6;
-    border-radius: 3px;
-  }
-</style>
-`;
-
-// Add the styles to the document head if not already present
-if (!document.getElementById('mathjax-overflow-styles')) {
-  const styleElement = document.createElement('div');
-  styleElement.id = 'mathjax-overflow-styles';
-  styleElement.innerHTML = mathJaxOverflowStyles;
-  document.head.appendChild(styleElement.firstElementChild);
 }
 function clearForm() {
   document.getElementById('mcqForm').reset();
